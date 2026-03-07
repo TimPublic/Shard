@@ -1,7 +1,10 @@
 package dev.timkloepper.engine;
 
 
+import dev.timkloepper.engine.exception.EngineFailedToInitException;
 import dev.timkloepper.render_container.Window;
+
+import static org.lwjgl.glfw.GLFW.glfwInit;
 
 
 /**
@@ -49,6 +52,12 @@ public class Engine {
 
     private Engine() {
         _running = false;
+
+        h_initGLFW();
+    }
+
+    private void h_initGLFW() {
+        if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
     }
 
     // </editor-fold>
