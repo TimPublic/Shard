@@ -244,6 +244,16 @@ public class Window extends A_RenderContainer {
     }
 
     // </editor-fold>
+    // <editor-fold desc="-+- CHECKERS -+-">
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof Window)) return false;
+
+        return ((Window) obj)._glfwPointer == _glfwPointer;
+    }
+
+    // </editor-fold>
 
 
 }

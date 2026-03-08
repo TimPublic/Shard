@@ -3,8 +3,12 @@ package dev.timkloepper.engine;
 
 import dev.timkloepper.engine.exception.EngineFailedToInitException;
 import dev.timkloepper.render_container.Window;
+import dev.timkloepper.util.Indexer;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.glfw.GLFW.glfwInit;
+import static org.lwjgl.glfw.GLFW.glfwTerminate;
 
 
 /**
@@ -23,7 +27,7 @@ import static org.lwjgl.glfw.GLFW.glfwInit;
  *     Everything you need is accessible through those static methods: <br>
  *     <ul>
  *         <li>[Life cycle] : {@link Engine#reset()}, {@link Engine#rerun()}, {@link Engine#kill()}</li>
- *         <li>[Update loop] : {@link Engine#run()}, {@link Engine#pause()}, {@link Engine#stepFrame()}</li>
+ *         <li>[Update loop] : {@link Engine#run()}, {@link Engine#pause()}, {@link Engine#stepFrames(int)}</li>
  *         <li>[Info] : {@link Engine#isRunning()}, {@link Engine#isInstantiated()}</li>
  *     </ul> <br>
  *     If no {@link Engine} instance exists, one is created upon any static call. <br>
@@ -53,9 +57,17 @@ public class Engine {
     private Engine() {
         _running = false;
 
+        _INDEXER = new Indexer();
+        _WINDOWS_BY_INDEX = new ConcurrentHashMap<>();
+
         h_initGLFW();
     }
 
+    /**
+     * Initializes glfw.
+     *
+     * @author Tim Kloepper
+     */
     private void h_initGLFW() {
         if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
     }
@@ -72,6 +84,7 @@ public class Engine {
      * Is volatile to support multi threading.
      */
     private volatile static Engine _instance;
+    private static boolean _glfwInitialized;
 
     /**
      * Indicates, if the engine is currently running or not. <br>
@@ -85,7 +98,8 @@ public class Engine {
     // </editor-fold>
     // <editor-fold desc="FINALS">
 
-
+    private final Indexer _INDEXER;
+    private final ConcurrentHashMap<Integer, Window> _WINDOWS_BY_INDEX;
 
     // </editor-fold>
 
@@ -116,6 +130,9 @@ public class Engine {
 
         _instance._running = false;
         _instance = null;
+
+        // Needs to be called, after ending the update loop.
+        glfwTerminate();
     }
 
     /**
@@ -197,17 +214,23 @@ public class Engine {
     }
 
     /**
-     * Calls {@link Engine#_update(double)} exactly one time with a delta
-     * of {@code 1}. This essentially means stepping one frame forwards
+     * Calls {@link Engine#_update(double)} exactly {@code amount} time with a delta
+     * of {@code 1} for the first {@link Engine#_update()} call.
+     * This essentially means stepping one frame forwards
      * with a delta that does not manipulate systems such as movement systems,
      * which typically multiply their speed with the delta time.
+     *
+     * @param amount Amount of calls to {@link Engine#_update()}.
      * 
      * @author Tim Kloepper
      */
-    public static void stepFrame() {
+    public static void stepFrames(int amount) {
+        if (amount <= 0) return;
+
         tryCreate();
 
         _instance._update(1);
+        for (int counter = 1; counter < amount; counter++) _instance._update();
     }
 
     /**
@@ -218,7 +241,7 @@ public class Engine {
      * @author Tim Kloepper
      */
     private void _update() {
-        System.out.println("Update!");
+        _update(1); // TODO : Calculate actual delta time.
     }
     /**
      * Contains the logic for updating the engine,
@@ -231,7 +254,25 @@ public class Engine {
      * @author Tim Kloepper
      */
     private void _update(double delta) {
+        for (Window window : _WINDOWS_BY_INDEX.values()) window.update(delta);
+    }
 
+    // </editor-fold>
+
+    // <editor-fold desc="-+- WINDOW MANAGEMENT -+-">
+
+    public int addWindow(Window window) {
+        int index;
+
+        if (_WINDOWS_BY_INDEX.containsValue(window)) return -1;
+
+        index = _INDEXER.get();
+        _WINDOWS_BY_INDEX.put(index, window);
+
+        return index;
+    }
+    public boolean rmvWindow(int index) {
+        return _WINDOWS_BY_INDEX.remove(index) != null;
     }
 
     // </editor-fold>
