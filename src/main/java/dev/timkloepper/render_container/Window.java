@@ -52,11 +52,25 @@ public class Window extends A_RenderContainer {
     private Window(int width, int height, String title) {
         super(width, height, true);
 
+        _initialized = false;
+
+        _shouldClose = false;
         _closed = false;
 
         _title = title;
 
-        h_createGLFW();
+        Engine.addTask(() -> {
+            h_createGLFW();
+
+            _initialized = true;
+        });
+        _closeTaskId = Engine.addLoopTask(() -> {
+            if (_closed) return;
+
+            _shouldClose = glfwWindowShouldClose(_glfwPointer);
+
+            if (_shouldClose) closeAndRemove();
+        });
     }
 
     public static Window create(int width, int height, String title) {
@@ -82,6 +96,8 @@ public class Window extends A_RenderContainer {
     private long _glfwPointer;
     private int _engineWindowId;
 
+    private volatile boolean _initialized;
+    private volatile boolean _shouldClose;
     private boolean _closed;
 
     /**
@@ -99,6 +115,8 @@ public class Window extends A_RenderContainer {
      * This queue is used to always have a valid reference for window context sharing.
      */
     private static final ConcurrentLinkedQueue<Window> s_WINDOWS = new ConcurrentLinkedQueue<>();
+
+    private final int _closeTaskId;
 
     // </editor-fold>
 
@@ -124,10 +142,14 @@ public class Window extends A_RenderContainer {
      * @author Tim Kloepper
      */
     public void close() {
-        glfwFreeCallbacks(_glfwPointer);
-        glfwDestroyWindow(_glfwPointer);
+        Engine.addTask(() -> {
+            glfwFreeCallbacks(_glfwPointer);
+            glfwDestroyWindow(_glfwPointer);
+        });
 
         _closed = true;
+
+        Engine.rmvLoopTask(_closeTaskId);
     }
 
     // </editor-fold>
@@ -230,13 +252,15 @@ public class Window extends A_RenderContainer {
 
     @Override
     public void update(double delta) {
-        makeCurrent();
+        if (_closed) return;
 
-        if (glfwWindowShouldClose(_glfwPointer)) {
-            close();
+        if (_shouldClose) {
+            closeAndRemove();
 
             return;
         }
+
+        makeCurrent();
 
         super.update(delta);
 
@@ -248,9 +272,7 @@ public class Window extends A_RenderContainer {
 
     @Override
     protected void p_render() {
-        if (glfwWindowShouldClose(_glfwPointer)) {
-            return;
-        }
+
     }
 
     /**
@@ -291,6 +313,9 @@ public class Window extends A_RenderContainer {
         return ((Window) obj)._glfwPointer == _glfwPointer;
     }
 
+    public boolean isInitialized() {
+        return _initialized;
+    }
     public boolean isClosed() {
         return _closed;
     }

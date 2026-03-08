@@ -6,10 +6,14 @@ import dev.timkloepper.engine.exception.EngineRunningOnDifferentThreadException;
 import dev.timkloepper.render_container.Window;
 import dev.timkloepper.util.Indexer;
 
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.lwjgl.glfw.GLFW.glfwInit;
-import static org.lwjgl.glfw.GLFW.glfwTerminate;
+import static org.lwjgl.glfw.GLFW.*;
 
 
 /**
@@ -64,8 +68,14 @@ public class Engine {
     private Engine() {
         _runningState = _RUNNING_STATE.NONE;
 
-        _INDEXER = new Indexer();
+        _WINDOW_ENGINE_ID_INDEXER = new Indexer();
         _WINDOWS_BY_INDEX = new ConcurrentHashMap<>();
+
+        _WINDOW_REMOVE_QUEUE = new ConcurrentLinkedQueue<>();
+
+        _TASK_QUEUE = new LinkedBlockingQueue<>();
+        _LOOP_TASKS = new ConcurrentHashMap<>();
+        _LOOP_TASK_INDEXER = new Indexer();
 
         h_initGLFW();
     }
@@ -76,7 +86,46 @@ public class Engine {
      * @author Tim Kloepper
      */
     private void h_initGLFW() {
-        if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
+        _shouldKillGlfwThread = false;
+
+        _glfwThread = new Thread(() -> {
+            HashSet<Thread> threadsCopy;
+            Thread mainThread;
+
+            if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
+
+            mainThread = null;
+
+            threadsCopy = new HashSet<>(Thread.getAllStackTraces().keySet());
+            for (Thread thread : threadsCopy) {
+                if (!Objects.equals(thread.getName(), "main")) continue;
+
+                mainThread = thread;
+            }
+
+            while (!_shouldKillGlfwThread) {
+                Runnable task;
+                HashSet<Runnable> loopTasksCopy;
+
+                if (mainThread == null) break;
+                if (!mainThread.isAlive()) break;
+
+                task = _TASK_QUEUE.poll();
+                if (task != null) task.run();
+
+                loopTasksCopy = new HashSet<>(_LOOP_TASKS.values());
+
+                for (Runnable loopTask : loopTasksCopy) {
+                    loopTask.run();
+                }
+
+                glfwPollEvents();
+            }
+
+            glfwTerminate();
+        });
+
+        _glfwThread.start();
     }
 
     // </editor-fold>
@@ -100,7 +149,6 @@ public class Engine {
      * Is volatile to support multi threading.
      */
     private volatile static Engine _instance;
-    private static boolean _glfwInitialized;
 
     /**
      * Indicates, if the engine is currently running or not. <br>
@@ -110,13 +158,22 @@ public class Engine {
      * Is volatile to support multi threading.
      */
     private volatile _RUNNING_STATE _runningState;
+
     private Thread _asyncThread;
+    private Thread _glfwThread;
+    private volatile boolean _shouldKillGlfwThread;
 
     // </editor-fold>
     // <editor-fold desc="FINALS">
 
-    private final Indexer _INDEXER;
+    private final Indexer _WINDOW_ENGINE_ID_INDEXER;
     private final ConcurrentHashMap<Integer, Window> _WINDOWS_BY_INDEX;
+
+    private final ConcurrentLinkedQueue<Integer> _WINDOW_REMOVE_QUEUE;
+
+    private final LinkedBlockingQueue<Runnable> _TASK_QUEUE;
+    private final ConcurrentHashMap<Integer, Runnable> _LOOP_TASKS;
+    private final Indexer _LOOP_TASK_INDEXER;
 
     // </editor-fold>
 
@@ -146,6 +203,7 @@ public class Engine {
      */
     public static void kill() {
         boolean async;
+        Iterator<Integer> iterator;
 
         if (_instance == null) return;
 
@@ -161,10 +219,19 @@ public class Engine {
             }
         }
 
-        _instance = null;
+        iterator = _instance._WINDOWS_BY_INDEX.keySet().iterator();
+        while (iterator.hasNext()) {
+            Window window;
 
-        // Needs to be called, after ending the update loop.
-        glfwTerminate();
+            window = _instance._WINDOWS_BY_INDEX.get(iterator.next());
+            window.close();
+
+            iterator.remove();
+        }
+
+        _instance._killGlfwThread();
+
+        _instance = null;
     }
 
     /**
@@ -355,7 +422,47 @@ public class Engine {
      * @author Tim Kloepper
      */
     private void _update(double delta) {
-        for (Window window : _WINDOWS_BY_INDEX.values()) window.update(delta);
+        h_removeWindows();
+
+        for (Window window : _WINDOWS_BY_INDEX.values()) if (window.isInitialized()) window.update(delta);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold desc="-+- GLFW THREAD MANAGEMENT -+-">
+
+    public static void addTask(Runnable task) {
+        tryCreate();
+
+        _instance._TASK_QUEUE.add(task);
+    }
+
+    public static int addLoopTask(Runnable task) {
+        int id;
+
+        tryCreate();
+
+        id = _instance._LOOP_TASK_INDEXER.get();
+
+        _instance._LOOP_TASKS.put(id, task);
+
+        return id;
+    }
+    public static void rmvLoopTask(int id) {
+        _instance._LOOP_TASKS.remove(id);
+        _instance._LOOP_TASK_INDEXER.free(id);
+    }
+
+    private void _killGlfwThread() {
+        _shouldKillGlfwThread = true;
+
+        try {
+            _glfwThread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        _shouldKillGlfwThread = false;
     }
 
     // </editor-fold>
@@ -367,21 +474,40 @@ public class Engine {
 
         if (_instance._WINDOWS_BY_INDEX.containsValue(window)) return -1;
 
-        index = _instance._INDEXER.get();
+        index = _instance._WINDOW_ENGINE_ID_INDEXER.get();
         _instance._WINDOWS_BY_INDEX.put(index, window);
 
         return index;
     }
     public static boolean rmvWindow(int index) {
-        Window window;
+        if (!_instance._WINDOWS_BY_INDEX.containsKey(index)) return false;
 
-        window = _instance._WINDOWS_BY_INDEX.get(index);
-        if (window == null) return false;
+        // Avoid concurrent modification exceptions when the engine is running.
+        if (_instance._runningState != _RUNNING_STATE.NONE) _instance._WINDOW_REMOVE_QUEUE.add(index);
+        else {
+            Window window;
 
-        _instance._WINDOWS_BY_INDEX.remove(index);
-        if (!window.isClosed()) window.close();
+            window = _instance._WINDOWS_BY_INDEX.remove(index);
+            if (!window.isClosed()) window.close();
+
+            _instance._WINDOW_ENGINE_ID_INDEXER.free(index);
+        }
 
         return true;
+    }
+
+    private void h_removeWindows() {
+        while (!_WINDOW_REMOVE_QUEUE.isEmpty()) {
+            int id;
+            Window window;
+
+            id = _WINDOW_REMOVE_QUEUE.poll();
+
+            window = _WINDOWS_BY_INDEX.remove(id);
+            if (!window.isClosed()) window.close();
+
+            _WINDOW_ENGINE_ID_INDEXER.free(id);
+        }
     }
 
     // </editor-fold>
