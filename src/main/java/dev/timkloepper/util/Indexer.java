@@ -2,6 +2,7 @@ package dev.timkloepper.util;
 
 
 import java.util.HashSet;
+import java.util.NoSuchElementException;
 
 
 /**
@@ -72,9 +73,12 @@ public class Indexer {
     public int get() {
         Integer index;
 
-        index = _FREE_INDICES.iterator().next();
-        if (index != null) _FREE_INDICES.remove(index);
-        else index = _nextFreeIndex++;
+        try {
+            index = _FREE_INDICES.iterator().next();
+            if (index != null) _FREE_INDICES.remove(index);
+        } catch (NoSuchElementException e) {
+            index = _nextFreeIndex++;
+        }
 
         return index;
     }
