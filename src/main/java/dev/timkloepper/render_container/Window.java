@@ -1,6 +1,7 @@
 package dev.timkloepper.render_container;
 
 
+import dev.timkloepper.engine.Engine;
 import dev.timkloepper.render_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -48,12 +49,23 @@ public class Window extends A_RenderContainer {
 
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
 
-    public Window(int width, int height, String title) {
+    private Window(int width, int height, String title) {
         super(width, height, true);
+
+        _closed = false;
 
         _title = title;
 
         h_createGLFW();
+    }
+
+    public static Window create(int width, int height, String title) {
+        Window window;
+
+        window = new Window(width, height, title);
+        window._engineWindowId = Engine.addWindow(window);
+
+        return window;
     }
 
     // </editor-fold>
@@ -68,6 +80,9 @@ public class Window extends A_RenderContainer {
      * it needs to be non-final.
      */
     private long _glfwPointer;
+    private int _engineWindowId;
+
+    private boolean _closed;
 
     /**
      * The title of the window, which gets displayed in the top left corner. <br>
@@ -93,13 +108,26 @@ public class Window extends A_RenderContainer {
 
     /**
      * Closes the window which clears the callbacks and destroys the window
-     * on the glfw side.
+     * on the glfw side and removes it from the {@link Engine}.
+     *
+     * @author Tim Kloepper
+     */
+    public void closeAndRemove() {
+        close();
+
+        Engine.rmvWindow(_engineWindowId);
+    }
+    /**
+     * Closes the window which clears the callbacks and destroys the window
+     * on the glfw side without removing it from the {@link Engine}.
      *
      * @author Tim Kloepper
      */
     public void close() {
         glfwFreeCallbacks(_glfwPointer);
         glfwDestroyWindow(_glfwPointer);
+
+        _closed = true;
     }
 
     // </editor-fold>
@@ -139,6 +167,8 @@ public class Window extends A_RenderContainer {
 
         // Set the clear color
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+
+        makeNotCurrent();
     }
 
     /**
@@ -200,6 +230,8 @@ public class Window extends A_RenderContainer {
 
     @Override
     public void update(double delta) {
+        makeCurrent();
+
         if (glfwWindowShouldClose(_glfwPointer)) {
             close();
 
@@ -207,6 +239,8 @@ public class Window extends A_RenderContainer {
         }
 
         super.update(delta);
+
+        makeNotCurrent();
     }
 
     // </editor-fold>
@@ -214,8 +248,6 @@ public class Window extends A_RenderContainer {
 
     @Override
     protected void p_render() {
-        makeCurrent();
-
         if (glfwWindowShouldClose(_glfwPointer)) {
             return;
         }
@@ -227,6 +259,9 @@ public class Window extends A_RenderContainer {
      */
     public void makeCurrent() {
         glfwMakeContextCurrent(_glfwPointer);
+    }
+    public void makeNotCurrent() {
+        glfwMakeContextCurrent(NULL);
     }
 
     // </editor-fold>
@@ -242,6 +277,9 @@ public class Window extends A_RenderContainer {
     public String getTitle() {
         return _title;
     }
+    public int getEngineWindowId() {
+        return _engineWindowId;
+    }
 
     // </editor-fold>
     // <editor-fold desc="-+- CHECKERS -+-">
@@ -251,6 +289,10 @@ public class Window extends A_RenderContainer {
         if (!(obj instanceof Window)) return false;
 
         return ((Window) obj)._glfwPointer == _glfwPointer;
+    }
+
+    public boolean isClosed() {
+        return _closed;
     }
 
     // </editor-fold>
