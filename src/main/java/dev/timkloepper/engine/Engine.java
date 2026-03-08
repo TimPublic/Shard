@@ -2,6 +2,7 @@ package dev.timkloepper.engine;
 
 
 import dev.timkloepper.engine.exception.EngineFailedToInitException;
+import dev.timkloepper.engine.exception.EngineRunningOnDifferentThreadException;
 import dev.timkloepper.render_container.Window;
 import dev.timkloepper.util.Indexer;
 
@@ -22,12 +23,18 @@ import static org.lwjgl.glfw.GLFW.glfwTerminate;
  *     to bypass this restriction nor should they do it anyway.
  * </p>
  * <p>
+ *     The engine supports running on another thread but please
+ *     do not do this on your own and use the respective {@link Engine#runAsync()} method.
+ * </p>
+ * <p>
  *     All publicly exposed methods are static and the engine itself
  *     cannot be instantiated by the user. <br>
  *     Everything you need is accessible through those static methods: <br>
  *     <ul>
- *         <li>[Life cycle] : {@link Engine#reset()}, {@link Engine#rerun()}, {@link Engine#kill()}</li>
- *         <li>[Update loop] : {@link Engine#run()}, {@link Engine#pause()}, {@link Engine#stepFrames(int)}</li>
+ *         <li>[Life cycle] : {@link Engine#reset()}, {@link Engine#rerun()}, {@link Engine#kill()},
+ *                            {@link Engine#rerunAsync()}</li>
+ *         <li>[Update loop] : {@link Engine#run()}, {@link Engine#pause()}, {@link Engine#stepFrames(int)},
+ *                             {@link Engine#runAsync()}</li>
  *         <li>[Info] : {@link Engine#isRunning()}, {@link Engine#isInstantiated()}</li>
  *     </ul> <br>
  *     If no {@link Engine} instance exists, one is created upon any static call. <br>
@@ -55,7 +62,7 @@ public class Engine {
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
 
     private Engine() {
-        _running = false;
+        _runningState = _RUNNING_STATE.NONE;
 
         _INDEXER = new Indexer();
         _WINDOWS_BY_INDEX = new ConcurrentHashMap<>();
@@ -74,6 +81,15 @@ public class Engine {
 
     // </editor-fold>
 
+    // <editor-fold desc="-+- ENUMS -+-">
+
+    private enum _RUNNING_STATE {
+        SYNC,
+        ASYNC,
+        NONE,
+    }
+
+    // </editor-fold>
     // <editor-fold desc="-+- PROPERTIES -+-">
 
     // <editor-fold desc="NON FINALS">
@@ -93,7 +109,8 @@ public class Engine {
      * the value without keeping this in mind. <br>
      * Is volatile to support multi threading.
      */
-    private volatile boolean _running;
+    private volatile _RUNNING_STATE _runningState;
+    private Thread _asyncThread;
 
     // </editor-fold>
     // <editor-fold desc="FINALS">
@@ -121,14 +138,29 @@ public class Engine {
      * Kills the current {@link Engine} instance and does not create a new one,
      * which leads to the next method called, needing to create one again. <br>
      * This method is safe to call, even if no {@link Engine} instance is currently
-     * existing.
+     * existing. <br>
+     * You can use this method from any thread to kill the engine on either async execution
+     * or synced.
      *
      * @author Tim Kloepper
      */
     public static void kill() {
+        boolean async;
+
         if (_instance == null) return;
 
-        _instance._running = false;
+        async = _instance._runningState == _RUNNING_STATE.ASYNC;
+
+        _instance._runningState = _RUNNING_STATE.NONE;
+
+        if (async) {
+            try {
+                _instance._asyncThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         _instance = null;
 
         // Needs to be called, after ending the update loop.
@@ -159,6 +191,18 @@ public class Engine {
 
         run();
     }
+    /**
+     * Kills the current {@link Engine} instance and creates a new one,
+     * instantly calling {@link Engine#runAsync()} again. <br>
+     * If you do not want an automatic restart, please use {@link Engine#reset()}.
+     *
+     * @author Tim Kloepper
+     */
+    public static void rerunAsync() {
+        reset();
+
+        runAsync();
+    }
 
     // </editor-fold>
     // <editor-fold desc="-+- UPDATE LOOP -+-">
@@ -186,11 +230,56 @@ public class Engine {
     public static void run() {
         tryCreate();
 
-        _instance._running = true;
+        if (_instance._runningState == _RUNNING_STATE.ASYNC) throw new EngineRunningOnDifferentThreadException();
+        if (_instance._runningState == _RUNNING_STATE.SYNC) return;
+        _instance._runningState = _RUNNING_STATE.SYNC;
 
-        while (_instance._running) {
+        while (_instance._runningState == _RUNNING_STATE.SYNC) {
             _instance._update();
+
+            if (_instance == null) return;
         }
+    }
+    /**
+     * <p>
+     *     Activates the update loop, calling
+     *     {@link Engine#_update()} in an infinite loop
+     *     until {@link Engine#pause()}, {@link Engine#reset()}
+     *     or {@link Engine#kill()} is called. <br>
+     *     Be aware, that {@link Engine#reset()} will call {@link Engine#kill()}
+     *     on the current {@link Engine} instance.
+     * </p>
+     * <p>
+     *     This method activates the update loop on another thread, enabling you to use
+     *     the main thread for other things. <br>
+     *     You can still use all other methods as normal.
+     * </p>
+     * <p>
+     *     If this static method is called as the first method
+     *     called on {@link Engine} in an execution,
+     *     it also creates an instance of the engine, possibly
+     *     slowing the method's execution down slightly.
+     *     This is also true, if the last {@link Engine}
+     *     method called was {@link Engine#kill()}.
+     * </p>
+     *
+     * @author Tim Kloepper
+     */
+    public static void runAsync() {
+        tryCreate();
+
+        if (_instance._runningState == _RUNNING_STATE.SYNC) throw new EngineRunningOnDifferentThreadException("Engine is already running on the main thread!");
+        if (_instance._runningState == _RUNNING_STATE.ASYNC) return;
+        _instance._runningState = _RUNNING_STATE.ASYNC;
+
+        _instance._asyncThread = new Thread(() -> {
+            while (_instance._runningState == _RUNNING_STATE.ASYNC) {
+                _instance._update();
+
+                if (_instance == null) return;
+            }
+        });
+        _instance._asyncThread.start();
     }
     /**
      * <p>
@@ -208,9 +297,21 @@ public class Engine {
      * @author Tim Kloepper
      */
     public static void pause() {
+        boolean async;
+
         tryCreate();
 
-        _instance._running = false;
+        async = _instance._runningState == _RUNNING_STATE.ASYNC;
+
+        _instance._runningState = _RUNNING_STATE.NONE;
+
+        if (async) {
+            try {
+                _instance._asyncThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     /**
@@ -261,18 +362,26 @@ public class Engine {
 
     // <editor-fold desc="-+- WINDOW MANAGEMENT -+-">
 
-    public int addWindow(Window window) {
+    public static int addWindow(Window window) {
         int index;
 
-        if (_WINDOWS_BY_INDEX.containsValue(window)) return -1;
+        if (_instance._WINDOWS_BY_INDEX.containsValue(window)) return -1;
 
-        index = _INDEXER.get();
-        _WINDOWS_BY_INDEX.put(index, window);
+        index = _instance._INDEXER.get();
+        _instance._WINDOWS_BY_INDEX.put(index, window);
 
         return index;
     }
-    public boolean rmvWindow(int index) {
-        return _WINDOWS_BY_INDEX.remove(index) != null;
+    public static boolean rmvWindow(int index) {
+        Window window;
+
+        window = _instance._WINDOWS_BY_INDEX.get(index);
+        if (window == null) return false;
+
+        _instance._WINDOWS_BY_INDEX.remove(index);
+        if (!window.isClosed()) window.close();
+
+        return true;
     }
 
     // </editor-fold>
@@ -289,7 +398,7 @@ public class Engine {
     public static boolean isRunning() {
         tryCreate();
 
-        return _instance._running;
+        return _instance._runningState != _RUNNING_STATE.NONE;
     }
     /**
      * Checks, whether there currently exists an instance of {@link Engine}.
