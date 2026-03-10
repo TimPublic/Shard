@@ -9,6 +9,7 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
@@ -44,7 +45,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  *
  * @author Tim Kloepper
  */
-public class Window extends A_RenderContainer {
+public class Window extends A_VisualContainer {
 
 
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
@@ -99,6 +100,8 @@ public class Window extends A_RenderContainer {
     private volatile boolean _initialized;
     private volatile boolean _shouldClose;
     private boolean _closed;
+
+    private A_Scene _rootAScene;
 
     /**
      * The title of the window, which gets displayed in the top left corner. <br>
@@ -262,18 +265,14 @@ public class Window extends A_RenderContainer {
 
         makeCurrent();
 
-        super.update(delta);
+        if (_rootAScene != null) _rootAScene.update(delta);
 
         makeNotCurrent();
     }
 
     // </editor-fold>
+
     // <editor-fold desc="-+- RENDERING -+-">
-
-    @Override
-    protected void p_render() {
-
-    }
 
     /**
      * Makes the glfw context this window, which applies all further rendering applications
@@ -284,6 +283,23 @@ public class Window extends A_RenderContainer {
     }
     public void makeNotCurrent() {
         glfwMakeContextCurrent(NULL);
+    }
+
+    // </editor-fold>
+    // <editor-fold desc="-+- SCENE MANAGEMENT -+-">
+
+    public boolean setScene(A_Scene AScene, boolean overwrite) {
+        if (_rootAScene != null && !overwrite) return false;
+
+        if (_rootAScene != null) _rootAScene.p_removedFromWindow(this);
+
+        _rootAScene = AScene;
+        _rootAScene.p_addedToWindow(this);
+
+        return true;
+    }
+    public Optional<A_Scene> getScene() {
+        return Optional.ofNullable(_rootAScene);
     }
 
     // </editor-fold>
