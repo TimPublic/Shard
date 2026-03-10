@@ -103,7 +103,7 @@ public class Indexer {
      * @author Tim Kloepper
      */
     public void free(int index) {
-        if (index > _minimum) return;
+        if (index < _minimum) return;
 
         _FREE_INDICES.add(index);
     }
