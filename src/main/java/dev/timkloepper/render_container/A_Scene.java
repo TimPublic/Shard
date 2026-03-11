@@ -1,6 +1,8 @@
 package dev.timkloepper.render_container;
 
 
+import dev.timkloepper.entity_component_system.entity_system.EntitySystem;
+
 import java.util.ArrayList;
 
 
@@ -12,12 +14,31 @@ public abstract class A_Scene extends A_VisualContainer {
     public A_Scene(int width, int height) {
         super(width, height, true);
 
+        _SYSTEMS = new _Systems();
+
         _LAYERED_SCENES = new ArrayList<>();
     }
 
     // </editor-fold>
 
 
+    // <editor-fold desc="-+- CLASSES -+-">
+
+    private class _Systems {
+
+        public _Systems() {
+            ECS = new EntitySystem();
+        }
+
+        public final EntitySystem ECS;
+
+        public void update(double delta) {
+            ECS.update(delta);
+        }
+
+    }
+
+    // </editor-fold>
     // <editor-fold desc="-+- PARAMETERS -+-">
 
     // <editor-fold desc="NON FINALS">
@@ -26,6 +47,8 @@ public abstract class A_Scene extends A_VisualContainer {
 
     // </editor-fold>
     // <editor-fold desc="FINALS">
+
+    private final _Systems _SYSTEMS;
 
     private final ArrayList<A_Scene> _LAYERED_SCENES;
 
@@ -47,6 +70,8 @@ public abstract class A_Scene extends A_VisualContainer {
         for (int index = _LAYERED_SCENES.size() - 1; index >= 0; index--) {
             _LAYERED_SCENES.get(index).update(delta);
         }
+
+        _SYSTEMS.update(delta);
     }
 
     // </editor-fold>
