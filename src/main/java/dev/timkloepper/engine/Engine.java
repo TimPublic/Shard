@@ -3,7 +3,7 @@ package dev.timkloepper.engine;
 
 import dev.timkloepper.engine.exception.EngineFailedToInitException;
 import dev.timkloepper.engine.exception.EngineRunningOnDifferentThreadException;
-import dev.timkloepper.render_container.Window;
+import dev.timkloepper.visual_container.Window;
 import dev.timkloepper.util.Indexer;
 
 import java.util.HashSet;

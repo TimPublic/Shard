@@ -1,4 +1,4 @@
-package dev.timkloepper.render_container;
+package dev.timkloepper.visual_container;
 
 
 import dev.timkloepper.entity_component_system.entity_system.EntitySystem;

@@ -1,4 +1,4 @@
-package dev.timkloepper.render_container.exception;
+package dev.timkloepper.visual_container.exception;
 
 
 public class WindowFailedToInitException extends RuntimeException {

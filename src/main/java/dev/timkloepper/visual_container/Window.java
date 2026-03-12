@@ -1,8 +1,8 @@
-package dev.timkloepper.render_container;
+package dev.timkloepper.visual_container;
 
 
 import dev.timkloepper.engine.Engine;
-import dev.timkloepper.render_container.exception.WindowFailedToInitException;
+import dev.timkloepper.visual_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
