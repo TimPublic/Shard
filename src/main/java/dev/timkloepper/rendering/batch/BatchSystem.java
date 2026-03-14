@@ -17,7 +17,6 @@ public class BatchSystem {
 
     // </editor-fold>
 
-
     // <editor-fold desc="-+- PARAMETERS -+-">
 
     // <editor-fold desc="NON FINALS">
@@ -32,7 +31,6 @@ public class BatchSystem {
     // </editor-fold>
 
     // </editor-fold>
-
 
     // <editor-fold desc="-+- RENDERING -+-">
 

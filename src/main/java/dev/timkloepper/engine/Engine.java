@@ -6,6 +6,7 @@ import dev.timkloepper.engine.exception.EngineRunningOnDifferentThreadException;
 import dev.timkloepper.visual_container.Window;
 import dev.timkloepper.util.Indexer;
 
+import java.lang.ref.Cleaner;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Objects;
@@ -76,6 +77,8 @@ public class Engine {
         _TASK_QUEUE = new LinkedBlockingQueue<>();
         _LOOP_TASKS = new ConcurrentHashMap<>();
         _LOOP_TASK_INDEXER = new Indexer();
+
+        _CLEANER = Cleaner.create();
 
         h_initGLFW();
     }
@@ -174,6 +177,8 @@ public class Engine {
     private final LinkedBlockingQueue<Runnable> _TASK_QUEUE;
     private final ConcurrentHashMap<Integer, Runnable> _LOOP_TASKS;
     private final Indexer _LOOP_TASK_INDEXER;
+
+    private final Cleaner _CLEANER;
 
     // </editor-fold>
 
@@ -508,6 +513,16 @@ public class Engine {
 
             _WINDOW_ENGINE_ID_INDEXER.free(id);
         }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold desc="-+- CLEANER MANAGEMENT -+-">
+
+    public static Cleaner getCleaner() {
+        tryCreate();
+
+        return _instance._CLEANER;
     }
 
     // </editor-fold>

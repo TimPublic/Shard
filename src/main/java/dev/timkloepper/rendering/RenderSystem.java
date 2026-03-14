@@ -26,7 +26,6 @@ public class RenderSystem implements I_UpdateLoop {
 
     // </editor-fold>
 
-
     // <editor-fold desc="-+- PARAMETERS -+-">
 
     // <editor-fold desc="NON FINALS">
@@ -45,7 +44,6 @@ public class RenderSystem implements I_UpdateLoop {
     // </editor-fold>
 
     // </editor-fold>
-
 
     // <editor-fold desc="-+- SCENE MANAGEMENT -+-">
 

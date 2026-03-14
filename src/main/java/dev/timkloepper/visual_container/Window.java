@@ -2,6 +2,9 @@ package dev.timkloepper.visual_container;
 
 
 import dev.timkloepper.engine.Engine;
+import dev.timkloepper.event_system.EventSystem;
+import dev.timkloepper.event_system.I_EventSystemHolder;
+import dev.timkloepper.rendering.RenderSystem;
 import dev.timkloepper.visual_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -45,7 +48,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  *
  * @author Tim Kloepper
  */
-public class Window extends A_VisualContainer {
+public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
 
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
@@ -72,6 +75,9 @@ public class Window extends A_VisualContainer {
 
             if (_shouldClose) closeAndRemove();
         });
+
+        _RENDER_SYSTEM = new RenderSystem();
+        _EVENT_SYSTEM = new EventSystem();
     }
 
     public static Window create(int width, int height, String title) {
@@ -120,6 +126,9 @@ public class Window extends A_VisualContainer {
     private static final ConcurrentLinkedQueue<Window> s_WINDOWS = new ConcurrentLinkedQueue<>();
 
     private final int _closeTaskId;
+
+    private final RenderSystem _RENDER_SYSTEM;
+    private final EventSystem _EVENT_SYSTEM;
 
     // </editor-fold>
 
@@ -267,6 +276,8 @@ public class Window extends A_VisualContainer {
 
         if (_rootAScene != null) _rootAScene.update(delta);
 
+        _RENDER_SYSTEM.update(delta);
+
         makeNotCurrent();
     }
 
@@ -291,15 +302,29 @@ public class Window extends A_VisualContainer {
     public boolean setScene(A_Scene AScene, boolean overwrite) {
         if (_rootAScene != null && !overwrite) return false;
 
-        if (_rootAScene != null) _rootAScene.p_removedFromWindow(this);
+        // Remove old scene, if existing.
+        if (_rootAScene != null) {
+            _rootAScene.p_removedFromRenderSystem(_RENDER_SYSTEM);
+            _rootAScene.p_onRemovedFromWindow(this);
+        }
 
+        // Set up new scene.
         _rootAScene = AScene;
-        _rootAScene.p_addedToWindow(this);
+        _rootAScene.p_changedRenderSystem(_RENDER_SYSTEM);
+        _rootAScene.p_onAddedToWindow(this);
 
         return true;
     }
     public Optional<A_Scene> getScene() {
         return Optional.ofNullable(_rootAScene);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold desc="-+- EVENT MANAGEMENT -+-">
+
+    public EventSystem getEventSystem() {
+        return _EVENT_SYSTEM;
     }
 
     // </editor-fold>

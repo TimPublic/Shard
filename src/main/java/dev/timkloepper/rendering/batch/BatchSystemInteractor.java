@@ -26,6 +26,10 @@ public class BatchSystemInteractor {
 
     // <editor-fold desc="-+- INTERACTION LOGIC -+-">
 
+    public void queueRender() {
+        _currentRenderSystem.addToQueue(_currentSceneId);
+    }
+
     private BatchSystem h_getSystem() {
         return _currentRenderSystem.getBatchSystem(_currentSceneId);
     }

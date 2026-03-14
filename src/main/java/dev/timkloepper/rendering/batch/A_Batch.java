@@ -1,8 +1,11 @@
 package dev.timkloepper.rendering.batch;
 
+
 import dev.timkloepper.rendering.batch.fragment_management.FragmentAllocator;
 import dev.timkloepper.rendering.batch.fragment_management.FragmentNode;
+import dev.timkloepper.rendering.camera.Camera2D;
 import dev.timkloepper.rendering.mesh.*;
+import dev.timkloepper.rendering.shader.Shader;
 import dev.timkloepper.update.I_UpdateLoop;
 
 import javax.naming.SizeLimitExceededException;
@@ -22,7 +25,7 @@ public abstract class A_Batch<T extends A_Mesh> {
 
     // -+- CREATION -+- //
 
-    public A_Batch(ShaderProgram shader, int vertices_amount, int vertex_size, int indices_amount) {
+    public A_Batch(Shader shader, int vertices_amount, int vertex_size, int indices_amount) {
         _shader = shader;
 
         _MESH_INFO = new HashMap<>();
@@ -93,7 +96,7 @@ public abstract class A_Batch<T extends A_Mesh> {
 
     // NON-FINALS //
 
-    private ShaderProgram _shader;
+    private Shader _shader;
 
 
     // -+- MESH MANAGEMENT -+- //
@@ -305,7 +308,7 @@ public abstract class A_Batch<T extends A_Mesh> {
 
     // -+- SHADER MANAGEMENT -+- //
 
-    public void setShader(ShaderProgram shader) {
+    public void setShader(Shader shader) {
         if (shader == null) throw new IllegalStateException("[BATCH ERROR] : Shader is null!");
 
         _shader = shader;
@@ -318,7 +321,7 @@ public abstract class A_Batch<T extends A_Mesh> {
         return _MESH_INFO.keySet();
     }
 
-    public ShaderProgram getActiveShader() {
+    public Shader getActiveShader() {
         return _shader;
     }
 
