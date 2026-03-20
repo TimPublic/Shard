@@ -1,7 +1,7 @@
 package dev.timkloepper.visual_container;
 
 
-import dev.timkloepper.engine.Engine;
+import dev.timkloepper.engine.Shard;
 import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.event_system.I_EventSystemHolder;
 import dev.timkloepper.rendering.RenderSystem;
@@ -63,12 +63,12 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
         _title = title;
 
-        Engine.addTask(() -> {
+        Shard.addTask(() -> {
             h_createGLFW();
 
             _initialized = true;
         });
-        _closeTaskId = Engine.addLoopTask(() -> {
+        _closeTaskId = Shard.addLoopTask(() -> {
             if (_closed) return;
 
             _shouldClose = glfwWindowShouldClose(_glfwPointer);
@@ -84,7 +84,7 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
         Window window;
 
         window = new Window(width, height, title);
-        window._engineWindowId = Engine.addWindow(window);
+        window._engineWindowId = Shard.addWindow(window);
 
         return window;
     }
@@ -138,30 +138,30 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
     /**
      * Closes the window which clears the callbacks and destroys the window
-     * on the glfw side and removes it from the {@link Engine}.
+     * on the glfw side and removes it from the {@link Shard}.
      *
      * @author Tim Kloepper
      */
     public void closeAndRemove() {
         close();
 
-        Engine.rmvWindow(_engineWindowId);
+        Shard.rmvWindow(_engineWindowId);
     }
     /**
      * Closes the window which clears the callbacks and destroys the window
-     * on the glfw side without removing it from the {@link Engine}.
+     * on the glfw side without removing it from the {@link Shard}.
      *
      * @author Tim Kloepper
      */
     public void close() {
-        Engine.addTask(() -> {
+        Shard.addTask(() -> {
             glfwFreeCallbacks(_glfwPointer);
             glfwDestroyWindow(_glfwPointer);
         });
 
         _closed = true;
 
-        Engine.rmvLoopTask(_closeTaskId);
+        Shard.rmvLoopTask(_closeTaskId);
     }
 
     // </editor-fold>

@@ -16,7 +16,6 @@ public abstract class A_EntityComponent {
 
     // </editor-fold>
 
-
     // <editor-fold desc="-+- PROPERTIES -+-">
 
     // <editor-fold desc="NON FINALS">
@@ -30,7 +29,7 @@ public abstract class A_EntityComponent {
 
     // </editor-fold>
 
-    // </editor-fold>
+    // </editor-fold
 
     // <editor-fold desc="-+- COPY LOGIC -+-">
 
@@ -48,7 +47,6 @@ public abstract class A_EntityComponent {
     protected abstract <T extends A_EntityComponent> T p_createCopy();
 
     // </editor-fold>
-
 
     // <editor-fold desc="-+- GETTERS -+-">
 

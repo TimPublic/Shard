@@ -1,6 +1,7 @@
 package dev.timkloepper.visual_container;
 
 
+import dev.timkloepper.engine.Shard;
 import dev.timkloepper.entity_component_system.entity_system.EntitySystem;
 import dev.timkloepper.event_system.A_Port;
 import dev.timkloepper.event_system.EventSystem;
@@ -25,6 +26,8 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
         _PRE_PORTS = new _PrePorts();
 
         _LAYERED_SCENES = new ArrayList<>();
+
+        Shard.getEventSystem().addPort(_PRE_PORTS.enginePort);
     }
 
     // </editor-fold>
@@ -58,10 +61,11 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
         public _PrePorts() {
             parentScenePort = null;
+            enginePort = null;
         }
 
 
-        public A_Port parentScenePort;
+        public A_Port parentScenePort, enginePort;
 
 
     }

@@ -3,6 +3,7 @@ package dev.timkloepper.engine;
 
 import dev.timkloepper.engine.exception.EngineFailedToInitException;
 import dev.timkloepper.engine.exception.EngineRunningOnDifferentThreadException;
+import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.visual_container.Window;
 import dev.timkloepper.util.Indexer;
 
@@ -23,27 +24,27 @@ import static org.lwjgl.glfw.GLFW.*;
  *     This class is the origin of the update loop of Shard.
  * </p>
  * <p>
- *     There can only ever exist one instance of {@link Engine},
+ *     There can only ever exist one instance of {@link Shard},
  *     this is ensured by the class itself and the user has no option
  *     to bypass this restriction nor should they do it anyway.
  * </p>
  * <p>
  *     The engine supports running on another thread but please
- *     do not do this on your own and use the respective {@link Engine#runAsync()} method.
+ *     do not do this on your own and use the respective {@link Shard#runAsync()} method.
  * </p>
  * <p>
  *     All publicly exposed methods are static and the engine itself
  *     cannot be instantiated by the user. <br>
  *     Everything you need is accessible through those static methods: <br>
  *     <ul>
- *         <li>[Life cycle] : {@link Engine#reset()}, {@link Engine#rerun()}, {@link Engine#kill()},
- *                            {@link Engine#rerunAsync()}</li>
- *         <li>[Update loop] : {@link Engine#run()}, {@link Engine#pause()}, {@link Engine#stepFrames(int)},
- *                             {@link Engine#runAsync()}</li>
- *         <li>[Info] : {@link Engine#isRunning()}, {@link Engine#isInstantiated()}</li>
+ *         <li>[Life cycle] : {@link Shard#reset()}, {@link Shard#rerun()}, {@link Shard#kill()},
+ *                            {@link Shard#rerunAsync()}</li>
+ *         <li>[Update loop] : {@link Shard#run()}, {@link Shard#pause()}, {@link Shard#stepFrames(int)},
+ *                             {@link Shard#runAsync()}</li>
+ *         <li>[Info] : {@link Shard#isRunning()}, {@link Shard#isInstantiated()}</li>
  *     </ul> <br>
- *     If no {@link Engine} instance exists, one is created upon any static call. <br>
- *     Nonetheless, a {@link Engine#tryCreate()} method exists, in order for the user
+ *     If no {@link Shard} instance exists, one is created upon any static call. <br>
+ *     Nonetheless, a {@link Shard#tryCreate()} method exists, in order for the user
  *     to have a clear API access for a little bit more control.
  * </p>
  * <p>
@@ -53,8 +54,8 @@ import static org.lwjgl.glfw.GLFW.*;
  *     their held objects.
  * </p>
  * <p>
- *     The {@link Engine} class is also thread safe, meaning that it would not be a problem
- *     to {@link Engine#run()} it on one thread and {@link Engine#kill()} it on another as they all share
+ *     The {@link Shard} class is also thread safe, meaning that it would not be a problem
+ *     to {@link Shard#run()} it on one thread and {@link Shard#kill()} it on another as they all share
  *     the same volatile instance.
  * </p>
  *
@@ -62,11 +63,11 @@ import static org.lwjgl.glfw.GLFW.*;
  *
  * @author Tim Kloepper
  */
-public class Engine {
+public class Shard {
 
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
 
-    private Engine() {
+    private Shard() {
         _runningState = _RUNNING_STATE.NONE;
 
         _WINDOW_ENGINE_ID_INDEXER = new Indexer();
@@ -79,6 +80,8 @@ public class Engine {
         _LOOP_TASK_INDEXER = new Indexer();
 
         _CLEANER = Cleaner.create();
+
+        _EVENT_SYSTEM = new EventSystem();
 
         h_initGLFW();
     }
@@ -147,16 +150,16 @@ public class Engine {
     // <editor-fold desc="NON FINALS">
 
     /**
-     * Is the current instance of {@link Engine} on which
+     * Is the current instance of {@link Shard} on which
      * the statically exposed methods work on. <br>
      * Is volatile to support multi threading.
      */
-    private volatile static Engine _instance;
+    private volatile static Shard _instance;
 
     /**
      * Indicates, if the engine is currently running or not. <br>
      * Is also used directly by the engine to determines, if it should
-     * loop-call {@link Engine#_update()} or not, so please do not change
+     * loop-call {@link Shard#_update()} or not, so please do not change
      * the value without keeping this in mind. <br>
      * Is volatile to support multi threading.
      */
@@ -180,6 +183,8 @@ public class Engine {
 
     private final Cleaner _CLEANER;
 
+    private final EventSystem _EVENT_SYSTEM;
+
     // </editor-fold>
 
 
@@ -188,18 +193,18 @@ public class Engine {
     // <editor-fold desc="-+- LIFE CYCLE -+-">
 
     /**
-     * Checks, if an instance of {@link Engine} currently exists and if not,
+     * Checks, if an instance of {@link Shard} currently exists and if not,
      * creates one in order for other methods to avoid a {@link NullPointerException}.
      *
      * @author Tim Kloepper
      */
     public static void tryCreate() {
-        if (_instance == null) _instance = new Engine();
+        if (_instance == null) _instance = new Shard();
     }
     /**
-     * Kills the current {@link Engine} instance and does not create a new one,
+     * Kills the current {@link Shard} instance and does not create a new one,
      * which leads to the next method called, needing to create one again. <br>
-     * This method is safe to call, even if no {@link Engine} instance is currently
+     * This method is safe to call, even if no {@link Shard} instance is currently
      * existing. <br>
      * You can use this method from any thread to kill the engine on either async execution
      * or synced.
@@ -240,21 +245,21 @@ public class Engine {
     }
 
     /**
-     * Kills the current {@link Engine} instance and creates a new one,
-     * but does not {@link Engine#run()} it. <br>
-     * If you want to instantly run after the reset, please use {@link Engine#rerun()}.
+     * Kills the current {@link Shard} instance and creates a new one,
+     * but does not {@link Shard#run()} it. <br>
+     * If you want to instantly run after the reset, please use {@link Shard#rerun()}.
      *
      * @author Tim Kloepper
      */
     public static void reset() {
         kill();
 
-        _instance = new Engine();
+        _instance = new Shard();
     }
     /**
-     * Kills the current {@link Engine} instance and creates a new one,
-     * instantly calling {@link Engine#run()} again. <br>
-     * If you do not want an automatic restart, please use {@link Engine#reset()}.
+     * Kills the current {@link Shard} instance and creates a new one,
+     * instantly calling {@link Shard#run()} again. <br>
+     * If you do not want an automatic restart, please use {@link Shard#reset()}.
      *
      * @author Tim Kloepper
      */
@@ -264,9 +269,9 @@ public class Engine {
         run();
     }
     /**
-     * Kills the current {@link Engine} instance and creates a new one,
-     * instantly calling {@link Engine#runAsync()} again. <br>
-     * If you do not want an automatic restart, please use {@link Engine#reset()}.
+     * Kills the current {@link Shard} instance and creates a new one,
+     * instantly calling {@link Shard#runAsync()} again. <br>
+     * If you do not want an automatic restart, please use {@link Shard#reset()}.
      *
      * @author Tim Kloepper
      */
@@ -282,19 +287,19 @@ public class Engine {
     /**
      * <p>
      *     Activates the update loop, calling
-     *     {@link Engine#_update()} in an infinite loop
-     *     until {@link Engine#pause()}, {@link Engine#reset()}
-     *     or {@link Engine#kill()} is called. <br>
-     *     Be aware, that {@link Engine#reset()} will call {@link Engine#kill()}
-     *     on the current {@link Engine} instance.
+     *     {@link Shard#_update()} in an infinite loop
+     *     until {@link Shard#pause()}, {@link Shard#reset()}
+     *     or {@link Shard#kill()} is called. <br>
+     *     Be aware, that {@link Shard#reset()} will call {@link Shard#kill()}
+     *     on the current {@link Shard} instance.
      * </p>
      * <p>
      *     If this static method is called as the first method
-     *     called on {@link Engine} in an execution,
+     *     called on {@link Shard} in an execution,
      *     it also creates an instance of the engine, possibly
      *     slowing the method's execution down slightly.
-     *     This is also true, if the last {@link Engine}
-     *     method called was {@link Engine#kill()}.
+     *     This is also true, if the last {@link Shard}
+     *     method called was {@link Shard#kill()}.
      * </p>
      *
      * @author Tim Kloepper
@@ -315,11 +320,11 @@ public class Engine {
     /**
      * <p>
      *     Activates the update loop, calling
-     *     {@link Engine#_update()} in an infinite loop
-     *     until {@link Engine#pause()}, {@link Engine#reset()}
-     *     or {@link Engine#kill()} is called. <br>
-     *     Be aware, that {@link Engine#reset()} will call {@link Engine#kill()}
-     *     on the current {@link Engine} instance.
+     *     {@link Shard#_update()} in an infinite loop
+     *     until {@link Shard#pause()}, {@link Shard#reset()}
+     *     or {@link Shard#kill()} is called. <br>
+     *     Be aware, that {@link Shard#reset()} will call {@link Shard#kill()}
+     *     on the current {@link Shard} instance.
      * </p>
      * <p>
      *     This method activates the update loop on another thread, enabling you to use
@@ -328,11 +333,11 @@ public class Engine {
      * </p>
      * <p>
      *     If this static method is called as the first method
-     *     called on {@link Engine} in an execution,
+     *     called on {@link Shard} in an execution,
      *     it also creates an instance of the engine, possibly
      *     slowing the method's execution down slightly.
-     *     This is also true, if the last {@link Engine}
-     *     method called was {@link Engine#kill()}.
+     *     This is also true, if the last {@link Shard}
+     *     method called was {@link Shard#kill()}.
      * </p>
      *
      * @author Tim Kloepper
@@ -340,7 +345,7 @@ public class Engine {
     public static void runAsync() {
         tryCreate();
 
-        if (_instance._runningState == _RUNNING_STATE.SYNC) throw new EngineRunningOnDifferentThreadException("Engine is already running on the main thread!");
+        if (_instance._runningState == _RUNNING_STATE.SYNC) throw new EngineRunningOnDifferentThreadException("Shard is already running on the main thread!");
         if (_instance._runningState == _RUNNING_STATE.ASYNC) return;
         _instance._runningState = _RUNNING_STATE.ASYNC;
 
@@ -355,15 +360,15 @@ public class Engine {
     }
     /**
      * <p>
-     *     Pauses the update loop by not calling {@link Engine#_update()} anymore,
-     *     until you call {@link Engine#run()} or {@link Engine#rerun()}, where
-     *     {@link Engine#rerun()} first calls {@link Engine#kill()} on the current
-     *     {@link Engine} instance.
+     *     Pauses the update loop by not calling {@link Shard#_update()} anymore,
+     *     until you call {@link Shard#run()} or {@link Shard#rerun()}, where
+     *     {@link Shard#rerun()} first calls {@link Shard#kill()} on the current
+     *     {@link Shard} instance.
      * </p>
      * <p>
-     *     If this static method is called as the first method called on {@link Engine} in an execution,
+     *     If this static method is called as the first method called on {@link Shard} in an execution,
      *     it also creates an instance of the engine, possibly slowing the method's execution down slightly.
-     *     This is also true, if the last {@link Engine} method called was {@link Engine#kill()}.
+     *     This is also true, if the last {@link Shard} method called was {@link Shard#kill()}.
      * </p>
      *
      * @author Tim Kloepper
@@ -387,13 +392,13 @@ public class Engine {
     }
 
     /**
-     * Calls {@link Engine#_update(double)} exactly {@code amount} time with a delta
-     * of {@code 1} for the first {@link Engine#_update()} call.
+     * Calls {@link Shard#_update(double)} exactly {@code amount} time with a delta
+     * of {@code 1} for the first {@link Shard#_update()} call.
      * This essentially means stepping one frame forwards
      * with a delta that does not manipulate systems such as movement systems,
      * which typically multiply their speed with the delta time.
      *
-     * @param amount Amount of calls to {@link Engine#_update()}.
+     * @param amount Amount of calls to {@link Shard#_update()}.
      * 
      * @author Tim Kloepper
      */
@@ -527,11 +532,21 @@ public class Engine {
 
     // </editor-fold>
 
+    // <editor-fold desc="-+- EVENT MANAGEMENT -+-">
+
+    public static EventSystem getEventSystem() {
+        tryCreate();
+
+        return _instance._EVENT_SYSTEM;
+    }
+
+    // </editor-fold>
+
     // <editor-fold desc="-+- CHECKERS -+-">
 
     /**
      * Shows, whether the engine is currently running,
-     * meaning it calls {@link Engine#_update()} in a loop,
+     * meaning it calls {@link Shard#_update()} in a loop,
      * or not.
      *
      * @return Whether the engine is running, or not.
@@ -542,9 +557,9 @@ public class Engine {
         return _instance._runningState != _RUNNING_STATE.NONE;
     }
     /**
-     * Checks, whether there currently exists an instance of {@link Engine}.
+     * Checks, whether there currently exists an instance of {@link Shard}.
      *
-     * @return Whether there is an instance of {@link Engine} existing, or not.
+     * @return Whether there is an instance of {@link Shard} existing, or not.
      */
     public static boolean isInstantiated() {
         return _instance != null;

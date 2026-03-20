@@ -6,7 +6,7 @@ public class EngineRunningOnDifferentThreadException extends RuntimeException {
         super(message);
     }
     public EngineRunningOnDifferentThreadException() {
-        super("Engine is already running on a different thread!");
+        super("Shard is already running on a different thread!");
     }
 
 }
