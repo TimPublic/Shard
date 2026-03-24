@@ -1,45 +1,43 @@
 package dev.timkloepper.rendering.mesh;
 
 
-import java.util.Arrays;
-import java.util.InvalidPropertiesFormatException;
+import dev.timkloepper.rendering.mesh.exception.InvalidIndicesException;
+import dev.timkloepper.rendering.mesh.exception.InvalidVerticesException;
 
 
 public abstract class A_Mesh {
 
 
-    public A_Mesh(float[] vertices, int[] indices) {
-        if (!(p_areValidVertices(vertices) && _areValidIndices(indices))) {
-            try {
-                throw new InvalidPropertiesFormatException(
-                        "[MESH ERROR] : Tried to provide invalid vertices or indices!\n" +
-                        "|-> Vertices : " + Arrays.toString(vertices) + "\n" +
-                        "|-> Vertices Size : " + vertices.length + "\n" +
-                        "|-> Expected Multiple Of : Please look into the class\n" +
-                        "|-> Indices : " + Arrays.toString(indices) + "\n" +
-                        "|-> Indices Size : " + indices.length + "\n" +
-                        "|-> Expected Multiple Of : " + 3 + "\n"
-                );
-            } catch (InvalidPropertiesFormatException e) {
-                throw new RuntimeException(e);
-            }
-        }
+    public A_Mesh(float[] vertices, int[] indices, int zIndex) {
+        if (!_areValidVertices(vertices)) throw new InvalidVerticesException("[MESH ERROR] : The size of the vertex array is not valid!\n"
+        + "|-> Vertices Amount : " + vertices.length + "\n"
+        + "|-> Required Vertex Size : " + getVertexSize() + "(or multiple)");
+        if (!_areValidIndices(indices)) throw new InvalidIndicesException("[MESH ERROR] : The size of the index array is not valid!\n"
+        + "|-> Indices Amount : " + indices.length + "\n"
+        + "|-> Required Index Size : " + REQUIRED_INDEX_SIZE + " (or multiple)");
 
         this.vertices = vertices;
         this.indices = indices;
+
+        this.zIndex = zIndex;
     }
 
 
     public float[] vertices;
     public int[] indices;
 
+    public int zIndex;
+
+
+    public final int REQUIRED_INDEX_SIZE = 3;
+
 
     private boolean _areValidIndices(int[] indices) {
         return (indices.length % 3 == 0);
     }
-
-
-    protected abstract boolean p_areValidVertices(float[] vertices);
+    private boolean _areValidVertices(float[] vertices) {
+        return (vertices.length % getVertexSize() == 0);
+    }
 
 
     public abstract int getVertexSize();

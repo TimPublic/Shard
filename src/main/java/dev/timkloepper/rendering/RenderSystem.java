@@ -2,95 +2,147 @@ package dev.timkloepper.rendering;
 
 
 import dev.timkloepper.rendering.batch.BatchSystem;
-import dev.timkloepper.rendering.batch.BatchSystemInteractor;
-import dev.timkloepper.update.I_UpdateLoop;
-import dev.timkloepper.util.Indexer;
-import dev.timkloepper.visual_container.A_Scene;
 
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.lang.ref.WeakReference;
+import java.util.*;
 
 
-public class RenderSystem implements I_UpdateLoop {
+public class RenderSystem {
 
-
-    // <editor-fold desc="-+- CONSTRUCTOR -+-">
+    // <editor-fold desc="-+- CREATION -+-">
 
     public RenderSystem() {
-        _SCENE_ID_INDEXER = new Indexer();
+        _nextFreeId = 0;
 
-        _SYSTEM_PER_ID = new HashMap<>();
+        _INFORMATION = new HashMap<>();
+        _FREE_IDS = new ArrayDeque<>();
 
-        _RENDERING_QUEUE = new ConcurrentLinkedQueue<>();
+        _QUEUE = new ArrayDeque<>();
     }
 
     // </editor-fold>
 
-    // <editor-fold desc="-+- PARAMETERS -+-">
+    // <editor-fold desc="-+- PROPERTIES -+-">
 
     // <editor-fold desc="NON FINALS">
 
-
+    private int _nextFreeId;
 
     // </editor-fold>
     // <editor-fold desc="FINALS">
 
-    private final Indexer _SCENE_ID_INDEXER;
+    private final HashMap<Integer, IdInformation> _INFORMATION;
+    private final ArrayDeque<Integer> _FREE_IDS;
 
-    private final HashMap<Integer, BatchSystem> _SYSTEM_PER_ID;
-
-    private final ConcurrentLinkedQueue<Integer> _RENDERING_QUEUE;
-
-    // </editor-fold>
+    private final ArrayDeque<Integer> _QUEUE;
 
     // </editor-fold>
 
-    // <editor-fold desc="-+- SCENE MANAGEMENT -+-">
+    // </editor-fold>
 
-    public int addScene(A_Scene scene) {
+    // <editor-fold desc="-+- BATCH MANAGEMENT -+-">
+
+    public int register() {
         int id;
 
-        _SYSTEM_PER_ID.put((id = _SCENE_ID_INDEXER.get()), new BatchSystem());
+        id = h_getFreeId();
+        _INFORMATION.put(id, new IdInformation());
 
         return id;
     }
-    public boolean rmvScene(int id) {
-        if (_SYSTEM_PER_ID.remove(id) == null) return false;
+    public boolean delete(int id) {
+        if (_INFORMATION.remove(id) == null) return false;
 
-        _SCENE_ID_INDEXER.free(id);
-
-        return true;
+        return _FREE_IDS.add(id);
     }
 
-    public BatchSystem getBatchSystem(int id) {
-        return _SYSTEM_PER_ID.get(id);
+    public int switchTo(int id, RenderSystem system) {
+        IdInformation information;
+        int newId;
+
+        information = _INFORMATION.remove(id);
+        if (information == null) return -1;
+
+        newId = system.h_getFromOtherSystem(information);
+
+        return newId;
+    }
+    public int switchFrom(int oldId, RenderSystem system) {
+        IdInformation information;
+        int newId;
+
+        information = system._INFORMATION.remove(oldId);
+        if (information == null) return -1; // TODO : Could possibly also do normal register but a silent fail would be alarming.
+
+        newId = h_getFreeId();
+        _INFORMATION.put(newId, information);
+
+        return newId;
+    }
+
+    private int h_getFromOtherSystem(IdInformation information) {
+        int id;
+
+        id = h_getFreeId();
+        _INFORMATION.put(id, information);
+
+        return id;
+    }
+
+    public BatchSystemInteractor interactor(int id) {
+        IdInformation information;
+        BatchSystem system;
+
+        information = _INFORMATION.get(id);
+        if (information == null) return null;
+
+        return new BatchSystemInteractor(information.BATCH_SYSTEM);
+    }
+
+    private int h_getFreeId() {
+        Integer id;
+
+        id = _FREE_IDS.poll();
+        if (id == null) id = _nextFreeId++;
+
+        return id;
     }
 
     // </editor-fold>
-    // <editor-fold desc="-+- INTERACTOR MANAGEMENT -+-">
+    // <editor-fold desc="-+- RENDER LOGIC -+-">
 
-    public BatchSystemInteractor getInteractor(int sceneId) {
-        return new BatchSystemInteractor();
+    public void queue(int id) {
+        _QUEUE.add(id);
+    }
+
+    public void render() {
+        while (!_QUEUE.isEmpty()) _INFORMATION.get(_QUEUE.poll()).BATCH_SYSTEM.render();
     }
 
     // </editor-fold>
-    // <editor-fold desc="-+- RENDERING -+-">
 
-    public void addToQueue(int id) {
-        _RENDERING_QUEUE.add(id);
+}
+
+class IdInformation {
+
+
+    public IdInformation() {
+        BATCH_SYSTEM = BatchSystem.create();
+        INTERACTORS = new ArrayList<>();
     }
 
-    // </editor-fold>
-    // <editor-fold desc="-+- UPDATE LOOP -+-">
 
-    @Override
-    public void update(double delta) {
-        while (!_RENDERING_QUEUE.isEmpty()) {
-            _SYSTEM_PER_ID.get(_RENDERING_QUEUE.poll()).render();
-        }
+    public final BatchSystem BATCH_SYSTEM;
+    public final ArrayList<WeakReference<BatchSystemInteractor>> INTERACTORS;
+
+
+    public void updateInteractors() {
+        Iterator<WeakReference<BatchSystemInteractor>> iterator;
+
+        iterator = INTERACTORS.iterator();
+
+        while (iterator.hasNext()) if (iterator.next().get() == null) iterator.remove();
     }
-
-    // </editor-fold>
 
 
 }

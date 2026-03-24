@@ -7,13 +7,11 @@ import dev.timkloepper.event_system.A_Port;
 import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.event_system.I_EventSystemHolder;
 import dev.timkloepper.rendering.RenderSystem;
-import dev.timkloepper.rendering.batch.BatchSystemInteractor;
 
 import java.util.ArrayList;
 
 
 public abstract class A_Scene extends A_VisualContainer implements I_EventSystemHolder {
-
 
     // <editor-fold desc="-+- CONSTRUCTOR -+-">
 
@@ -39,14 +37,13 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
         public _Systems() {
             renderSystemId = -1;
-            INTERACTOR = null;
 
             ECS = new EntitySystem();
             EVENT_SYSTEM = new EventSystem();
         }
 
         public int renderSystemId;
-        public BatchSystemInteractor INTERACTOR;
+        public RenderSystem renderSystem;
 
         public final EntitySystem ECS;
         public final EventSystem EVENT_SYSTEM;
@@ -92,13 +89,19 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
     // <editor-fold desc="-+- WINDOW INTERACTION -+-">
 
-    protected final void p_changedRenderSystem(RenderSystem renderSystem) {
-        _SYSTEMS.INTERACTOR = renderSystem.getInteractor((_SYSTEMS.renderSystemId = renderSystem.addScene(this)));
+    protected final void p_getNewRenderSystem(RenderSystem system) {
+        if (system == _SYSTEMS.renderSystem) return;
+
+        if (system != null) p_removeRenderSystem();
+
+        _SYSTEMS.renderSystem = system;
+        _SYSTEMS.renderSystemId = _SYSTEMS.renderSystem.register();
     }
-    protected void p_removedFromRenderSystem(RenderSystem renderSystem) {
-        renderSystem.rmvScene(_SYSTEMS.renderSystemId);
+    protected final void p_removeRenderSystem() {
+        if (_SYSTEMS.renderSystem != null) _SYSTEMS.renderSystem.delete(_SYSTEMS.renderSystemId);
+
+        _SYSTEMS.renderSystem = null;
         _SYSTEMS.renderSystemId = -1;
-        _SYSTEMS.INTERACTOR = null;
     }
 
     protected abstract void p_onAddedToWindow(Window window);
@@ -111,16 +114,13 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
         _LAYERED_SCENES.add(layer, scene);
 
         scene._onParentSceneChanged(this);
+        scene.p_getNewRenderSystem(_SYSTEMS.renderSystem);
     }
     public void addSceneFront(A_Scene scene) {
-        _LAYERED_SCENES.addFirst(scene);
-
-        scene._onParentSceneChanged(this);
+        addScene(scene, 0);
     }
     public void addSceneBack(A_Scene scene) {
-        _LAYERED_SCENES.addLast(scene);
-
-        scene._onParentSceneChanged(this);
+        addScene(scene, _LAYERED_SCENES.size() - 1);
     }
 
     public boolean rmvScene(A_Scene scene) {
@@ -156,7 +156,7 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
         }
 
         _SYSTEMS.update(delta);
-        _SYSTEMS.INTERACTOR.queueRender();
+        _SYSTEMS.renderSystem.queue(_SYSTEMS.renderSystemId);
     }
 
     // </editor-fold>
@@ -168,6 +168,5 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
     }
 
     // </editor-fold>
-
 
 }

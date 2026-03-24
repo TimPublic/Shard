@@ -211,7 +211,7 @@ public abstract class A_Batch<T extends A_Mesh> {
 
         System.arraycopy(mesh.vertices, 0, _VERTICES, info.vertexPointer, mesh.vertices.length);
         for (int index = 0; index < mesh.indices.length; index++) {
-            _INDICES[index + info.indexPointer] = mesh.indices[index] + info.vertexPointer;
+            _INDICES[index + info.indexPointer] = mesh.indices[index] + (info.vertexPointer / mesh.getVertexSize());
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, _VBO_ID);

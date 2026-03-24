@@ -276,8 +276,6 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
         if (_rootAScene != null) _rootAScene.update(delta);
 
-        _RENDER_SYSTEM.update(delta);
-
         makeNotCurrent();
     }
 
@@ -304,13 +302,13 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
         // Remove old scene, if existing.
         if (_rootAScene != null) {
-            _rootAScene.p_removedFromRenderSystem(_RENDER_SYSTEM);
+            _rootAScene.p_removeRenderSystem();
             _rootAScene.p_onRemovedFromWindow(this);
         }
 
         // Set up new scene.
         _rootAScene = AScene;
-        _rootAScene.p_changedRenderSystem(_RENDER_SYSTEM);
+        _rootAScene.p_getNewRenderSystem(_RENDER_SYSTEM);
         _rootAScene.p_onAddedToWindow(this);
 
         return true;
