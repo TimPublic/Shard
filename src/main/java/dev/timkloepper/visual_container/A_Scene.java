@@ -95,6 +95,13 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
     // TODO : Do this. Think about scene movement, scene transfer through windows/surfaces and scene removal and addition.
 
     // </editor-fold>
+    // <editor-fold desc="-+- VIEWPORT INTERACTION -+-">
+
+    public Viewport getViewport() {
+        return p_SYSTEMS.renderViewport;
+    }
+
+    // </editor-fold>
 
     // <editor-fold desc="-+- UPDATE LOOP -+-">
 

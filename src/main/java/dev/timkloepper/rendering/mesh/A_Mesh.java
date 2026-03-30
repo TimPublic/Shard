@@ -6,8 +6,6 @@ import dev.timkloepper.rendering.mesh.exception.InvalidVerticesException;
 public abstract class A_Mesh {
 
     public A_Mesh(float[] vertices, int[] indices) {
-        validate();
-
         _changed = false;
 
         _vertices = vertices;
