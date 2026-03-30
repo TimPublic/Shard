@@ -1,4 +1,4 @@
-package dev.timkloepper.rendering.shader.exception;
+package dev.timkloepper.rendering.api.shader.exception;
 
 
 public class CouldNotOpenShaderFileException extends RuntimeException {

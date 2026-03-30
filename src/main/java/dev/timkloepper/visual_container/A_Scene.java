@@ -6,7 +6,7 @@ import dev.timkloepper.entity_component_system.entity_system.EntitySystem;
 import dev.timkloepper.event_system.A_Port;
 import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.event_system.I_EventSystemHolder;
-import dev.timkloepper.rendering.RenderSystem;
+import dev.timkloepper.rendering.api.pipeline.Viewport;
 
 import java.util.ArrayList;
 
@@ -20,8 +20,8 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
         _parentScene = null;
 
-        _SYSTEMS = new _Systems();
-        _PRE_PORTS = new _PrePorts();
+        p_SYSTEMS = new p_Systems();
+        _PRE_PORTS = new p_PrePorts();
 
         _LAYERED_SCENES = new ArrayList<>();
 
@@ -33,17 +33,14 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
     // <editor-fold desc="-+- CLASSES -+-">
 
-    private class _Systems {
+    protected class p_Systems {
 
-        public _Systems() {
-            renderSystemId = -1;
-
+        public p_Systems() {
             ECS = new EntitySystem();
             EVENT_SYSTEM = new EventSystem();
         }
 
-        public int renderSystemId;
-        public RenderSystem renderSystem;
+        public Viewport renderViewport;
 
         public final EntitySystem ECS;
         public final EventSystem EVENT_SYSTEM;
@@ -53,10 +50,10 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
         }
 
     }
-    private class _PrePorts {
+    protected class p_PrePorts {
 
 
-        public _PrePorts() {
+        public p_PrePorts() {
             parentScenePort = null;
             enginePort = null;
         }
@@ -77,8 +74,8 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
     // </editor-fold>
     // <editor-fold desc="FINALS">
 
-    private final _Systems _SYSTEMS;
-    private final _PrePorts _PRE_PORTS;
+    protected final p_Systems p_SYSTEMS;
+    private final p_PrePorts _PRE_PORTS;
 
     private final ArrayList<A_Scene> _LAYERED_SCENES;
 
@@ -89,61 +86,13 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
     // <editor-fold desc="-+- WINDOW INTERACTION -+-">
 
-    protected final void p_getNewRenderSystem(RenderSystem system) {
-        if (system == _SYSTEMS.renderSystem) return;
-
-        if (system != null) p_removeRenderSystem();
-
-        _SYSTEMS.renderSystem = system;
-        _SYSTEMS.renderSystemId = _SYSTEMS.renderSystem.register();
-    }
-    protected final void p_removeRenderSystem() {
-        if (_SYSTEMS.renderSystem != null) _SYSTEMS.renderSystem.delete(_SYSTEMS.renderSystemId);
-
-        _SYSTEMS.renderSystem = null;
-        _SYSTEMS.renderSystemId = -1;
-    }
-
     protected abstract void p_onAddedToWindow(Window window);
     protected abstract void p_onRemovedFromWindow(Window window);
 
     // </editor-fold>
     // <editor-fold desc="-+- SCENE INTERACTION -+-">
 
-    public void addScene(A_Scene scene, int layer) {
-        _LAYERED_SCENES.add(layer, scene);
-
-        scene._onParentSceneChanged(this);
-        scene.p_getNewRenderSystem(_SYSTEMS.renderSystem);
-    }
-    public void addSceneFront(A_Scene scene) {
-        addScene(scene, 0);
-    }
-    public void addSceneBack(A_Scene scene) {
-        addScene(scene, _LAYERED_SCENES.size() - 1);
-    }
-
-    public boolean rmvScene(A_Scene scene) {
-        if (!_LAYERED_SCENES.remove(scene)) return false;
-
-        scene._removeParentScene();
-        return true;
-    }
-
-    private void _onParentSceneChanged(A_Scene newScene) {
-        _removeParentScene();
-
-        _parentScene = newScene;
-        _parentScene.getEventSystem().addPort(_PRE_PORTS.parentScenePort);
-    }
-    private void _removeParentScene() {
-        if (_parentScene == null) return;
-
-        _parentScene.rmvScene(this);
-        _parentScene.getEventSystem().rmvPort(_PRE_PORTS.parentScenePort);
-
-        _parentScene = null;
-    }
+    // TODO : Do this. Think about scene movement, scene transfer through windows/surfaces and scene removal and addition.
 
     // </editor-fold>
 
@@ -155,8 +104,7 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
             _LAYERED_SCENES.get(index).update(delta);
         }
 
-        _SYSTEMS.update(delta);
-        _SYSTEMS.renderSystem.queue(_SYSTEMS.renderSystemId);
+        p_SYSTEMS.update(delta);
     }
 
     // </editor-fold>
@@ -164,7 +112,7 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
     // <editor-fold desc="-+- EVENT MANAGEMENT -+-">
 
     public EventSystem getEventSystem() {
-        return _SYSTEMS.EVENT_SYSTEM;
+        return p_SYSTEMS.EVENT_SYSTEM;
     }
 
     // </editor-fold>

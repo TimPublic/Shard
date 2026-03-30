@@ -4,7 +4,8 @@ package dev.timkloepper.visual_container;
 import dev.timkloepper.engine.Shard;
 import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.event_system.I_EventSystemHolder;
-import dev.timkloepper.rendering.RenderSystem;
+import dev.timkloepper.rendering.api.pipeline.Surface;
+import dev.timkloepper.rendering.api.pipeline.Viewport;
 import dev.timkloepper.visual_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -76,7 +77,7 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
             if (_shouldClose) closeAndRemove();
         });
 
-        _RENDER_SYSTEM = new RenderSystem();
+        _RENDER_SURFACE = new Surface();
         _EVENT_SYSTEM = new EventSystem();
     }
 
@@ -127,7 +128,7 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
     private final int _closeTaskId;
 
-    private final RenderSystem _RENDER_SYSTEM;
+    private final Surface _RENDER_SURFACE;
     private final EventSystem _EVENT_SYSTEM;
 
     // </editor-fold>
@@ -276,6 +277,8 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
         if (_rootAScene != null) _rootAScene.update(delta);
 
+        _RENDER_SURFACE.render();
+
         makeNotCurrent();
     }
 
@@ -294,27 +297,45 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
         glfwMakeContextCurrent(NULL);
     }
 
+    public Surface getSurface() {
+        return _RENDER_SURFACE;
+    }
+
     // </editor-fold>
     // <editor-fold desc="-+- SCENE MANAGEMENT -+-">
 
     public boolean setScene(A_Scene AScene, boolean overwrite) {
         if (_rootAScene != null && !overwrite) return false;
 
-        // Remove old scene, if existing.
-        if (_rootAScene != null) {
-            _rootAScene.p_removeRenderSystem();
-            _rootAScene.p_onRemovedFromWindow(this);
-        }
-
-        // Set up new scene.
+        rmvScene();
         _rootAScene = AScene;
-        _rootAScene.p_getNewRenderSystem(_RENDER_SYSTEM);
+
+        if (AScene.p_SYSTEMS.renderViewport == null) AScene.p_SYSTEMS.renderViewport = _RENDER_SURFACE.viewport();
+        _RENDER_SURFACE.addViewport(AScene.p_SYSTEMS.renderViewport);
+
         _rootAScene.p_onAddedToWindow(this);
 
         return true;
     }
     public Optional<A_Scene> getScene() {
         return Optional.ofNullable(_rootAScene);
+    }
+
+    public A_Scene rmvScene() {
+        A_Scene scene;
+        Viewport viewport;
+
+        if (_rootAScene == null) return null;
+
+        scene = _rootAScene;
+        _rootAScene = null;
+
+        viewport = scene.p_SYSTEMS.renderViewport;
+        _RENDER_SURFACE.rmvViewport(viewport);
+
+        scene.p_onRemovedFromWindow(this);
+
+        return scene;
     }
 
     // </editor-fold>

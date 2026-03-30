@@ -1,7 +1,7 @@
-package dev.timkloepper.rendering.shader;
+package dev.timkloepper.rendering.api.shader;
 
 
-import dev.timkloepper.rendering.shader.exception.CouldNotOpenShaderFileException;
+import dev.timkloepper.rendering.api.shader.exception.CouldNotOpenShaderFileException;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -78,7 +78,7 @@ public class Shader {
         try {
             contents = new String(Files.readAllBytes(Path.of(path))).split("(#type)( )+");
         } catch (IOException e) {
-            throw new CouldNotOpenShaderFileException("[SHADER ERROR] : Could not open the specified file!\n"
+            throw new CouldNotOpenShaderFileException("[shader ERROR] : Could not open the specified file!\n"
             + "|-> File : " + path);
         }
 
@@ -114,7 +114,7 @@ public class Shader {
 
         logLength = glGetShaderi(shaderId, GL_INFO_LOG_LENGTH);
 
-        throw new CouldNotOpenShaderFileException("[SHADER ERROR] : Could not compile the shader!\n"
+        throw new CouldNotOpenShaderFileException("[shader ERROR] : Could not compile the shader!\n"
         + "|-> Info Log : " + glGetShaderInfoLog(shaderId, logLength));
     }
 
@@ -135,7 +135,7 @@ public class Shader {
 
         logLength = glGetProgrami(_programId, GL_INFO_LOG_LENGTH);
 
-        throw new CouldNotOpenShaderFileException("[SHADER ERROR] : Could not link the shaders!\n"
+        throw new CouldNotOpenShaderFileException("[shader ERROR] : Could not link the shaders!\n"
                 + "|-> Info Log : " + glGetProgramInfoLog(_programId, logLength));
     }
 
