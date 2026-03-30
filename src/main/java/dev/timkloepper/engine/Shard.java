@@ -98,37 +98,47 @@ public class Shard {
             HashSet<Thread> threadsCopy;
             Thread mainThread;
 
-            if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
+            try {
+                if (!glfwInit()) throw new EngineFailedToInitException("Shard was not able to initialize GLFW!");
 
-            mainThread = null;
+                mainThread = null;
 
-            threadsCopy = new HashSet<>(Thread.getAllStackTraces().keySet());
-            for (Thread thread : threadsCopy) {
-                if (!Objects.equals(thread.getName(), "main")) continue;
+                threadsCopy = new HashSet<>(Thread.getAllStackTraces().keySet());
+                for (Thread thread : threadsCopy) {
+                    if (!Objects.equals(thread.getName(), "main")) continue;
 
-                mainThread = thread;
-            }
-
-            while (!_shouldKillGlfwThread) {
-                Runnable task;
-                HashSet<Runnable> loopTasksCopy;
-
-                if (mainThread == null) break;
-                if (!mainThread.isAlive()) break;
-
-                task = _TASK_QUEUE.poll();
-                if (task != null) task.run();
-
-                loopTasksCopy = new HashSet<>(_LOOP_TASKS.values());
-
-                for (Runnable loopTask : loopTasksCopy) {
-                    loopTask.run();
+                    mainThread = thread;
                 }
 
-                glfwPollEvents();
-            }
+                while (!_shouldKillGlfwThread) {
+                    HashSet<Runnable> tasksCopy, loopTasksCopy;
 
-            glfwTerminate();
+                    if (mainThread == null) break;
+                    if (!mainThread.isAlive()) break;
+
+                    while (!_TASK_QUEUE.isEmpty()) {
+                        Runnable task;
+
+                        task = _TASK_QUEUE.poll();
+
+                        if (task == null) continue;
+
+                        task.run();
+                    }
+
+                    loopTasksCopy = new HashSet<>(_LOOP_TASKS.values());
+
+                    for (Runnable loopTask : loopTasksCopy) {
+                        loopTask.run();
+                    }
+
+                    glfwPollEvents();
+                }
+
+                glfwTerminate();
+            } catch (RuntimeException e) {
+                System.out.println("ERROR : " + e);
+            }
         });
 
         _glfwThread.start();

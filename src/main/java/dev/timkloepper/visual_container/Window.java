@@ -144,6 +144,8 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
      * @author Tim Kloepper
      */
     public void closeAndRemove() {
+        if (_closed) return;
+
         close();
 
         Shard.rmvWindow(_engineWindowId);
@@ -155,6 +157,8 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
      * @author Tim Kloepper
      */
     public void close() {
+        if (_closed) return;
+
         Shard.addTask(() -> {
             glfwFreeCallbacks(_glfwPointer);
             glfwDestroyWindow(_glfwPointer);
@@ -266,12 +270,6 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
     @Override
     public void update(double delta) {
         if (_closed) return;
-
-        if (_shouldClose) {
-            closeAndRemove();
-
-            return;
-        }
 
         makeCurrent();
 
