@@ -1,6 +1,7 @@
 package dev.timkloepper.event_system;
 
 
+import java.lang.ref.Cleaner;
 import java.lang.ref.WeakReference;
 import java.util.*;
 
@@ -24,6 +25,8 @@ public class EventSystem {
 
     // </editor-fold>
     // <editor-fold desc="FINALS">
+
+    private static final Cleaner _CLEANER = Cleaner.create();
 
     private final ArrayList<WeakReference<A_Port>> _PORTS;
 
@@ -103,6 +106,13 @@ public class EventSystem {
         events.forEach((event) -> {
             ports.forEach((port) -> port.p_accept(event));
         });
+    }
+
+    // </editor-fold>
+    // <editor-fold desc="-+- CLEANER MANAGEMENT -+-">
+
+    protected static Cleaner p_getCleaner() {
+        return _CLEANER;
     }
 
     // </editor-fold>

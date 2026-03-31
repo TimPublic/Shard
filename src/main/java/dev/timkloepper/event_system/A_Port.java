@@ -1,8 +1,6 @@
 package dev.timkloepper.event_system;
 
-
 import dev.timkloepper.engine.Shard;
-
 
 public abstract class A_Port {
 
@@ -12,7 +10,7 @@ public abstract class A_Port {
     public A_Port(EventFilter filter, Runnable destroyCallback) {
         _FILTER = filter;
 
-        Shard.getCleaner().register(this, destroyCallback);
+        EventSystem.p_getCleaner().register(this, destroyCallback);
     }
 
     // </editor-fold>

@@ -1,11 +1,7 @@
 package dev.timkloepper.visual_container;
 
-
 import dev.timkloepper.engine.Shard;
-import dev.timkloepper.event_system.EventSystem;
-import dev.timkloepper.event_system.I_EventSystemHolder;
-import dev.timkloepper.rendering.api.pipeline.Surface;
-import dev.timkloepper.rendering.api.pipeline.Viewport;
+import dev.timkloepper.engine.Worker;
 import dev.timkloepper.visual_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -13,7 +9,6 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
@@ -22,158 +17,62 @@ import static org.lwjgl.glfw.GLFW.GLFW_FALSE;
 import static org.lwjgl.glfw.GLFW.GLFW_MAXIMIZED;
 import static org.lwjgl.glfw.GLFW.GLFW_RESIZABLE;
 import static org.lwjgl.glfw.GLFW.GLFW_TRUE;
+import static org.lwjgl.glfw.GLFW.glfwCreateWindow;
+import static org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor;
+import static org.lwjgl.glfw.GLFW.glfwGetVideoMode;
+import static org.lwjgl.glfw.GLFW.glfwGetWindowSize;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowPos;
 import static org.lwjgl.glfw.GLFW.glfwWindowHint;
-import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+public class Window extends A_VisualContainer {
 
-/**
- * <p>
- *     A normal window, created with glfw. <br>
- *     Is used to display any kind of rendering and is therefore a core piece of Shard.
- * </p>
- * <p>
- *     In order to make sure, to render into the correct window, please call {@link Window#makeCurrent()}
- *     when doing custom rendering outside the normal render loop.
- * </p>
- * <p>
- *     Windows support resizing and changing of the title, which is displayed in the top left corner of the window bar.
- * </p>
- * <p>
- *     If you want to dispose a window, please call {@link Window#close()}. <br>
- *     Closing the window in the window bar, has the same effect.
- * </p>
- *
- * @version 0.1
- *
- * @author Tim Kloepper
- */
-public class Window extends A_VisualContainer implements I_EventSystemHolder {
-
-
-    // <editor-fold desc="-+- CONSTRUCTOR -+-">
+    // <editor-fold desc="-+- CREATION -+-">
 
     private Window(int width, int height, String title) {
         super(width, height, true);
 
-        _initialized = false;
-
-        _shouldClose = false;
         _closed = false;
 
         _title = title;
 
-        Shard.addTask(() -> {
-            h_createGLFW();
-
-            _initialized = true;
-        });
-        _closeTaskId = Shard.addLoopTask(() -> {
-            if (_closed) return;
-
-            _shouldClose = glfwWindowShouldClose(_glfwPointer);
-
-            if (_shouldClose) closeAndRemove();
-        });
-
-        _RENDER_SURFACE = new Surface();
-        _EVENT_SYSTEM = new EventSystem();
+        Worker.GLFW.instruct(this::h_createGLFW);
     }
 
     public static Window create(int width, int height, String title) {
         Window window;
 
+        System.out.println(Shard.addWindowUpdate((window = createIndependent(width, height, title))));
+
+        return window;
+    }
+    public static Window createIndependent(int width, int height, String title) {
+        Window window;
+
         window = new Window(width, height, title);
-        window._engineWindowId = Shard.addWindow(window);
+
+        window._glfwLoopTaskId = Worker.GLFW.instructLooped(() -> {
+            if (window._glfwId == NULL) return;
+
+            if (glfwWindowShouldClose(window._glfwId)) {
+                window.close();
+
+                return;
+            }
+
+            window.setRenderFocus(true);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glfwSwapBuffers(window._glfwId);
+            window.setRenderFocus(false);
+        });
 
         return window;
     }
 
-    // </editor-fold>
-
-    // <editor-fold desc="-+- PROPERTIES -+-">
-
-    // <editor-fold desc="NON FINALS">
-
     /**
-     * Pointer or id for glfw operations. <br>
-     * Should not change but due to the set-up of this class,
-     * it needs to be non-final.
-     */
-    private long _glfwPointer;
-    private int _engineWindowId;
-
-    private volatile boolean _initialized;
-    private volatile boolean _shouldClose;
-    private boolean _closed;
-
-    private A_Scene _rootAScene;
-
-    /**
-     * The title of the window, which gets displayed in the top left corner. <br>
-     * This title can possibly change and due to multi threading concerns, is this property
-     * {@code volatile}.
-     */
-    private volatile String _title;
-
-    // </editor-folds>
-    // <editor-fold desc="FINALS">
-
-    /**
-     * Keeps track of all existing windows, which is also why it is concurrent. <br>
-     * This queue is used to always have a valid reference for window context sharing.
-     */
-    private static final ConcurrentLinkedQueue<Window> s_WINDOWS = new ConcurrentLinkedQueue<>();
-
-    private final int _closeTaskId;
-
-    private final Surface _RENDER_SURFACE;
-    private final EventSystem _EVENT_SYSTEM;
-
-    // </editor-fold>
-
-    // </editor-fold>
-
-    // <editor-fold desc="-+- LIFE CYCLE -+-">
-
-    /**
-     * Closes the window which clears the callbacks and destroys the window
-     * on the glfw side and removes it from the {@link Shard}.
-     *
-     * @author Tim Kloepper
-     */
-    public void closeAndRemove() {
-        if (_closed) return;
-
-        close();
-
-        Shard.rmvWindow(_engineWindowId);
-    }
-    /**
-     * Closes the window which clears the callbacks and destroys the window
-     * on the glfw side without removing it from the {@link Shard}.
-     *
-     * @author Tim Kloepper
-     */
-    public void close() {
-        if (_closed) return;
-
-        Shard.addTask(() -> {
-            glfwFreeCallbacks(_glfwPointer);
-            glfwDestroyWindow(_glfwPointer);
-        });
-
-        _closed = true;
-
-        Shard.rmvLoopTask(_closeTaskId);
-    }
-
-    // </editor-fold>
-    // <editor-fold desc="-+- SET UP -+-">
-
-    /**
-     * Creates the window on the glfw side. <br>
+     * Creates the window on the GLFW side. <br>
      * Sets up windows hints, creates the window and tries to use an already existing
      * window as a reference in order to share the context. <br>
      * Also adds the window into the static queue for later references for future windows.
@@ -189,13 +88,13 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
         h_glfwCreateWindow();
         h_pushStackFrame();
 
-        // Make the OpenGL context current
-        glfwMakeContextCurrent(_glfwPointer);
+        setRenderFocus(true);
+
         // Enable v-sync
         glfwSwapInterval(1);
 
         // Make the window visible
-        glfwShowWindow(_glfwPointer);
+        glfwShowWindow(_glfwId);
 
         // This line is critical for LWJGL's interoperation with GLFW's
         // OpenGL context, or any context that is managed externally.
@@ -207,11 +106,11 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
         // Set the clear color
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 
-        makeNotCurrent();
+        setRenderFocus(false);
     }
 
     /**
-     * Sets up the glfw window hints.
+     * Sets up the GLFW window hints.
      *
      * @author Tim Kloepper
      */
@@ -222,7 +121,7 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
         glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
     }
     /**
-     * Creates the actual glfw window and adds it to the static queue.
+     * Creates the actual GLFW window and adds it to the static queue.
      *
      * @author Tim Kloepper
      */
@@ -231,13 +130,15 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
         referenceWindow = s_WINDOWS.peek();
 
-        if (referenceWindow == null) _glfwPointer = glfwCreateWindow(getWidth(), getHeight(), _title, NULL, NULL);
-        else _glfwPointer = glfwCreateWindow(getWidth(), getHeight(), _title, NULL, referenceWindow._glfwPointer);
+        if (referenceWindow == null) _glfwId = glfwCreateWindow(getWidth(), getHeight(), _title, NULL, NULL);
+        else _glfwId = glfwCreateWindow(getWidth(), getHeight(), _title, NULL, referenceWindow._glfwId);
 
-        if (_glfwPointer == NULL) throw new WindowFailedToInitException("Failed to create a window with GLFW!");
+        if (_glfwId == NULL) throw new WindowFailedToInitException("Failed to create a window with GLFW!");
+
+        s_WINDOWS.add(this);
     }
     /**
-     * Pushes a stack frame for the glfw window in order for glfw references.
+     * Pushes a stack frame for the GLFW window in order for GLFW references.
      * TODO : Check, if this is even true lol.
      *
      * @author Tim Kloepper
@@ -249,14 +150,14 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
             IntBuffer pHeight = stack.mallocInt(1); // int*
 
             // Get the window size passed to glfwCreateWindow
-            glfwGetWindowSize(_glfwPointer, pWidth, pHeight);
+            glfwGetWindowSize(_glfwId, pWidth, pHeight);
 
             // Get the resolution of the primary monitor
             GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
             // Center the window
             glfwSetWindowPos(
-                    _glfwPointer,
+                    _glfwId,
                     (vidmode.width() - pWidth.get(0)) / 2,
                     (vidmode.height() - pHeight.get(0)) / 2
             );
@@ -265,120 +166,53 @@ public class Window extends A_VisualContainer implements I_EventSystemHolder {
 
     // </editor-fold>
 
-    // <editor-fold desc="-+- UPDATE LOOP -+-">
+    // <editor-fold desc="-+- PROPERTIES -+-">
 
-    @Override
-    public void update(double delta) {
+    // <editor-fold desc="NON FINALS">
+
+    private long _glfwId;
+    private boolean _renderFocused;
+
+    private int _glfwLoopTaskId;
+
+    private boolean _closed;
+
+    private String _title;
+
+    // </editor-fold>
+    // <editor-fold desc="FINALS">
+
+    private static final ConcurrentLinkedQueue<Window> s_WINDOWS = new ConcurrentLinkedQueue<>();
+
+    // </editor-fold>
+
+    // </editor-fold>
+
+    public void close() {
         if (_closed) return;
 
-        makeCurrent();
+        Worker.GLFW.rmvLooped(_glfwLoopTaskId);
 
-        if (_rootAScene != null) _rootAScene.update(delta);
+        Shard.rmvWindowUpdate(this);
 
-        _RENDER_SURFACE.render();
+        Worker.GLFW.instruct(() -> {
+            glfwFreeCallbacks(_glfwId);
+            glfwDestroyWindow(_glfwId);
+        });
 
-        makeNotCurrent();
+        _closed = true;
     }
 
-    // </editor-fold>
+    public void setRenderFocus(boolean state) {
+        if (_renderFocused == state) return;
 
-    // <editor-fold desc="-+- RENDERING -+-">
+        if (state) glfwMakeContextCurrent(_glfwId);
+        else glfwMakeContextCurrent(NULL);
 
-    /**
-     * Makes the glfw context this window, which applies all further rendering applications
-     * to this window.
-     */
-    public void makeCurrent() {
-        glfwMakeContextCurrent(_glfwPointer);
+        _renderFocused = state;
     }
-    public void makeNotCurrent() {
-        glfwMakeContextCurrent(NULL);
-    }
-
-    public Surface getSurface() {
-        return _RENDER_SURFACE;
-    }
-
-    // </editor-fold>
-    // <editor-fold desc="-+- SCENE MANAGEMENT -+-">
-
-    public boolean setScene(A_Scene AScene, boolean overwrite) {
-        if (_rootAScene != null && !overwrite) return false;
-
-        rmvScene();
-        _rootAScene = AScene;
-
-        if (AScene.p_SYSTEMS.renderViewport == null) AScene.p_SYSTEMS.renderViewport = _RENDER_SURFACE.viewport();
-        _RENDER_SURFACE.addViewport(AScene.p_SYSTEMS.renderViewport);
-
-        _rootAScene.p_onAddedToWindow(this);
-
-        return true;
-    }
-    public Optional<A_Scene> getScene() {
-        return Optional.ofNullable(_rootAScene);
-    }
-
-    public A_Scene rmvScene() {
-        A_Scene scene;
-        Viewport viewport;
-
-        if (_rootAScene == null) return null;
-
-        scene = _rootAScene;
-        _rootAScene = null;
-
-        viewport = scene.p_SYSTEMS.renderViewport;
-        _RENDER_SURFACE.rmvViewport(viewport);
-
-        scene.p_onRemovedFromWindow(this);
-
-        return scene;
-    }
-
-    // </editor-fold>
-
-    // <editor-fold desc="-+- EVENT MANAGEMENT -+-">
-
-    public EventSystem getEventSystem() {
-        return _EVENT_SYSTEM;
-    }
-
-    // </editor-fold>
-
-    // <editor-fold desc="-+- GETTERS -+-">
-
-    /**
-     * Gets the current title of this window. <br>
-     * Be aware, that this title can change during the execution process.
-     *
-     * @return The current title of this window.
-     */
-    public String getTitle() {
-        return _title;
-    }
-    public int getEngineWindowId() {
-        return _engineWindowId;
-    }
-
-    // </editor-fold>
-    // <editor-fold desc="-+- CHECKERS -+-">
 
     @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof Window)) return false;
-
-        return ((Window) obj)._glfwPointer == _glfwPointer;
-    }
-
-    public boolean isInitialized() {
-        return _initialized;
-    }
-    public boolean isClosed() {
-        return _closed;
-    }
-
-    // </editor-fold>
-
+    public void update(double delta) {}
 
 }

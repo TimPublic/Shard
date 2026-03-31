@@ -1,6 +1,7 @@
 package dev.timkloepper.rendering.api.shader;
 
 
+import dev.timkloepper.engine.Worker;
 import dev.timkloepper.rendering.api.shader.exception.CouldNotOpenShaderFileException;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class Shader {
     public Shader(String path) {
         _PATH = path;
 
-        h_compile(_PATH);
+        Worker.GLFW.instruct(() -> h_compile(_PATH));
     }
 
     // </editor-fold>
@@ -69,7 +70,7 @@ public class Shader {
     private void h_compile(String path) {
         h_parseShaders(path);
         h_compileShaders();
-        h_createAndLink();
+        // h_createAndLink();
     }
 
     private void h_parseShaders(String path) {
@@ -131,7 +132,7 @@ public class Shader {
     private void h_checkForLinkingErrors() {
         int logLength;
 
-        if (glGetProgrami(_programId, GL_COMPILE_STATUS) != GL_FALSE) return;
+        if (glGetProgrami(_programId, GL_LINK_STATUS) != GL_FALSE) return;
 
         logLength = glGetProgrami(_programId, GL_INFO_LOG_LENGTH);
 

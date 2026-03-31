@@ -25,7 +25,7 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
 
         _LAYERED_SCENES = new ArrayList<>();
 
-        Shard.getEventSystem().addPort(_PRE_PORTS.enginePort);
+        // Shard.getEventSystem().addPort(_PRE_PORTS.enginePort);
     }
 
     // </editor-fold>
