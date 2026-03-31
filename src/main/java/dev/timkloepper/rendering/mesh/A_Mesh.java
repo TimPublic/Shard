@@ -8,33 +8,33 @@ public abstract class A_Mesh {
     public A_Mesh(float[] vertices, int[] indices) {
         _changed = false;
 
-        _vertices = vertices;
-        _indices = indices;
+        p_vertices = vertices;
+        p_indices = indices;
 
         validate();
     }
 
     private boolean _changed;
 
-    private float[] _vertices;
-    private int[] _indices;
+    protected float[] p_vertices;
+    protected int[] p_indices;
 
     public float[] getVertices() {
-        return _vertices;
+        return p_vertices;
     }
     public int[] getIndices() {
-        return _indices;
+        return p_indices;
     }
 
     public void setVertices(float[] vertices) {
         _changed = true;
 
-        _vertices = vertices;
+        p_vertices = vertices;
     }
     public void setIndices(int[] indices) {
         _changed = true;
 
-        _indices = indices;
+        p_indices = indices;
     }
 
     public boolean hasChanged() {
@@ -45,8 +45,8 @@ public abstract class A_Mesh {
     }
 
     public void validate() {
-        if (_vertices.length % getVertexSize() != 0) throw new InvalidVerticesException("");
-        if (_indices.length % 3 != 0) throw new InvalidIndicesException("");
+        if (p_vertices.length % getVertexSize() != 0) throw new InvalidVerticesException("");
+        if (p_indices.length % 3 != 0) throw new InvalidIndicesException("");
     }
 
     public abstract int getVertexSize();

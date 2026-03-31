@@ -176,10 +176,10 @@ public class RenderPass {
         return Optional.ofNullable(h_getMeshData(forMesh).getRecipe());
     }
 
-    public void setRecipeStd(Class<? extends A_Mesh> forMesh, BatchRecipe recipe) {
+    public static void setRecipeStd(Class<? extends A_Mesh> forMesh, BatchRecipe recipe) {
         MeshClassData.setRecipeStd(forMesh, recipe);
     }
-    public BatchRecipe getRecipeStd(Class<? extends A_Mesh> forMesh) {
+    public static BatchRecipe getRecipeStd(Class<? extends A_Mesh> forMesh) {
         return MeshClassData.getRecipeStd(forMesh);
     }
 
@@ -201,10 +201,10 @@ public class RenderPass {
         return h_getMeshData(forMesh).getFactory();
     }
 
-    public void setFactoryStd(Class<? extends A_Mesh> forMesh, BatchFactory blueprint) {
+    public static void setFactoryStd(Class<? extends A_Mesh> forMesh, BatchFactory blueprint) {
         MeshClassData.setFactoryStd(forMesh, blueprint);
     }
-    public BatchFactory getFactoryStd(Class<? extends A_Mesh> forMesh) {
+    public static BatchFactory getFactoryStd(Class<? extends A_Mesh> forMesh) {
         return MeshClassData.getFactoryStd(forMesh);
     }
 
