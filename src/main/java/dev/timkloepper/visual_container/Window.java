@@ -2,6 +2,9 @@ package dev.timkloepper.visual_container;
 
 import dev.timkloepper.engine.Shard;
 import dev.timkloepper.engine.Worker;
+import dev.timkloepper.event_system.EventSystem;
+import dev.timkloepper.input.key.KeyListener;
+import dev.timkloepper.input.mouse.MouseListener;
 import dev.timkloepper.visual_container.exception.WindowFailedToInitException;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -37,6 +40,11 @@ public class Window extends A_VisualContainer {
         _closed = false;
 
         _title = title;
+
+        _EVENT_SYSTEM = new EventSystem();
+
+        _KEY_LISTENER = new KeyListener(_EVENT_SYSTEM);
+        _MOUSE_LISTENER = new MouseListener(_EVENT_SYSTEM);
 
         Worker.GLFW.instruct(this::h_createGLFW);
     }
@@ -87,6 +95,11 @@ public class Window extends A_VisualContainer {
         h_glfwWindowHints();
         h_glfwCreateWindow();
         h_pushStackFrame();
+
+        glfwSetKeyCallback(_glfwId, _KEY_LISTENER::keyCallback);
+        glfwSetCursorPosCallback(_glfwId, _MOUSE_LISTENER::cursorPositionCallback);
+        glfwSetMouseButtonCallback(_glfwId, _MOUSE_LISTENER::mouseButtonCallback);
+        glfwSetScrollCallback(_glfwId, _MOUSE_LISTENER::scrollCallback);
 
         setRenderFocus(true);
 
@@ -184,6 +197,11 @@ public class Window extends A_VisualContainer {
 
     private static final ConcurrentLinkedQueue<Window> s_WINDOWS = new ConcurrentLinkedQueue<>();
 
+    private final EventSystem _EVENT_SYSTEM;
+
+    private final KeyListener _KEY_LISTENER;
+    private final MouseListener _MOUSE_LISTENER;
+
     // </editor-fold>
 
     // </editor-fold>
@@ -213,6 +231,9 @@ public class Window extends A_VisualContainer {
     }
 
     @Override
-    public void update(double delta) {}
+    public void update(double delta) {
+        _KEY_LISTENER.update();
+        _MOUSE_LISTENER.update();
+    }
 
 }
