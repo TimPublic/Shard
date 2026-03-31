@@ -1,8 +1,7 @@
 package dev.timkloepper.visual_container;
 
 
-import dev.timkloepper.engine.Shard;
-import dev.timkloepper.entity_component_system.entity_system.EntitySystem;
+import dev.timkloepper.ecs.ECS;
 import dev.timkloepper.event_system.A_Port;
 import dev.timkloepper.event_system.EventSystem;
 import dev.timkloepper.event_system.I_EventSystemHolder;
@@ -36,17 +35,17 @@ public abstract class A_Scene extends A_VisualContainer implements I_EventSystem
     protected class p_Systems {
 
         public p_Systems() {
-            ECS = new EntitySystem();
+            ENTITY_COMPONENT_SYSTEM = new ECS();
             EVENT_SYSTEM = new EventSystem();
         }
 
         public Viewport renderViewport;
 
-        public final EntitySystem ECS;
+        public final ECS ENTITY_COMPONENT_SYSTEM;
         public final EventSystem EVENT_SYSTEM;
 
         public void update(double delta) {
-            ECS.update(delta);
+            ENTITY_COMPONENT_SYSTEM.update(delta);
         }
 
     }
