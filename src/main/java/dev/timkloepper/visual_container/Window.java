@@ -221,6 +221,9 @@ public class Window extends A_VisualContainer {
         _closed = true;
     }
 
+    public static void randomFocus() {
+        s_WINDOWS.peek().setRenderFocus(true);
+    }
     public void setRenderFocus(boolean state) {
         if (_renderFocused == state) return;
 

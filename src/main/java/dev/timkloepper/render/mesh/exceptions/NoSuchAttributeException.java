@@ -1,4 +1,4 @@
-package dev.timkloepper.render;
+package dev.timkloepper.render.mesh.exceptions;
 
 public class NoSuchAttributeException extends RuntimeException {
 

@@ -70,7 +70,7 @@ public class Shader {
     private void h_compile(String path) {
         h_parseShaders(path);
         h_compileShaders();
-        // h_createAndLink();
+        h_createAndLink();
     }
 
     private void h_parseShaders(String path) {

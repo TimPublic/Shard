@@ -1,8 +1,9 @@
-package dev.timkloepper.render;
+package dev.timkloepper.render.mesh;
 
+import dev.timkloepper.render.mesh.exceptions.NoSuchAttributeException;
+import dev.timkloepper.render.mesh.exceptions.NoSuchVertexException;
 import org.joml.Vector2d;
 
-import java.lang.reflect.Array;
 import java.util.*;
 
 public class Mesh {
@@ -327,6 +328,16 @@ public class Mesh {
 
     public float[] getData() {
         return _data;
+    }
+
+    public Collection<String> getAttribNames() {
+        HashSet<String> names;
+
+        names = new HashSet<>();
+
+        _ATTRIBS.forEach((attrib) -> names.add(attrib.NAME));
+
+        return names;
     }
 
     public Vertex getVertex(int index) {
