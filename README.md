@@ -12,7 +12,7 @@ Shard is still in an active state of development. <br>
 Nonetheless, the following features are already functional in some extent.
 
 <ul>
-<li> 📬 **Event System** - Port based, hierachial event system with filtering and custom port support. </li>
+<li> 📬 <strong>Event System</strong> - Port based, hierachial event system with filtering and custom port support. </li>
 <li> 🪟 **Multiple Windows** - GLFW based, one method call, automatic updates </li>
 <li> 🧵 **Multithreading** - Engine can run on a seperate thread, GLFW has its own thread, worker threads </li>
 <li> 📦 **Mesh System** - Easy mesh creation, custom attributes, easy mesh manipulation, automatic update detection</li>
