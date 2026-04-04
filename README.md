@@ -2,7 +2,7 @@
 
 ![Shard's logo](shard_logo.png)
 
-## What it is
+## What It Is
 
 Shard is a Java based game framework, with extensive rendering flexibility and multithreading.
 
@@ -33,3 +33,16 @@ The following features are planned and will be implemented shortly.
 ## Documentation
 
 Every system has its own dedicated entry in the docs folder for detailed instructions on usage, common misconceptions and best practices.
+
+## Getting Started
+
+To get started, just add Shard as a .jar library (available in the releases) and write the following code. <br>
+This code will create a window and start the engine on a seperate thread.
+
+```
+Window window;
+
+window = Window.create(1920, 1080, "Hello Shard!");
+
+Shard.run(true);
+```
