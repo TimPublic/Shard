@@ -4,7 +4,7 @@
 
 ## What It Is
 
-Shard is a Java based game framework, with extensive rendering flexibility and multithreading.
+Shard is a Java based game framework, with extensive rendering flexibility and multithreading. Prioritizing flexibility across the board with extensive dependency injection.
 
 ## Features
 
