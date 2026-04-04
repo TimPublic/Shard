@@ -4,7 +4,26 @@
 
 ## What It Is
 
-Shard is a Java based game framework, with extensive rendering flexibility and multithreading. Prioritizing flexibility across the board with extensive dependency injection.
+Shard is a Java / LWJGL based game framework, with extensive rendering flexibility and multithreading.
+It provides a simple API with optional core system customization.
+
+## Why Use Shard
+
+Shard provides you with low level control without enforcing it.
+
+The framework has a simple API with which you can create applications and games quickly. <br>
+However, Shard also provides you with many options to gain low level control through a clean and easy to use API.
+
+Shard lets you touch core systems whenever required, such as the following:
+- Easy render pipeline creation
+- Custom batch allocation systems
+- Extensive dependency injection
+
+While having these options, Shard always provides at least one complete implementation.
+
+This makes Shard the perfect framework for both:
+- Developers just starting with engine design
+- Experienced developers who want explicit low level control at certain points
 
 ## Features
 
