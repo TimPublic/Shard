@@ -1,7 +1,8 @@
 package dev.timkloepper.engine;
 
-import dev.timkloepper.engine.exception.EngineFailedToInitException;
+import dev.timkloepper.engine.exceptions.EngineFailedToInitException;
 import dev.timkloepper.util.Indexer;
+import dev.timkloepper.visual_container.Window;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -112,6 +113,10 @@ public class Worker {
             _LOOP_TASK_ID_INDEXER.free(id);
 
             return true;
+        }
+
+        public void contextFocus() {
+            Window.glfwFocus();
         }
 
     }
