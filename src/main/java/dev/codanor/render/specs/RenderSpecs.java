@@ -1,10 +1,12 @@
 package dev.codanor.render.specs;
 
 import dev.codanor.engine.Worker;
-import dev.codanor.render.objects.frame_buffer.I_FrameBuffer;
+import dev.codanor.render.specs.buffers.I_FrameBuffer;
+import dev.codanor.render.specs.buffers.I_Image;
 import dev.codanor.render.specs.buffers.I_FloatBuffer;
 import dev.codanor.render.specs.buffers.I_IntBuffer;
 import dev.codanor.render.specs.shaders.I_GeometryShader;
+import dev.codanor.render.specs.shaders.I_PostProcessShader;
 import dev.codanor.render.viewport.Batch;
 import dev.codanor.render.specs.allocation.I_Allocator;
 import dev.codanor.util.Indexer;
@@ -16,6 +18,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL30.*;
 
 public class RenderSpecs {
 
@@ -51,10 +56,20 @@ public class RenderSpecs {
     public record BufferSpecs(
             Function<Integer, I_IntBuffer> intBufferFactory,
             Function<Integer, I_FloatBuffer> floatBufferFactory,
-            Function<Vector2i, I_FrameBuffer> frameBufferFactory
+            Function<I_FrameBuffer.FrameBufferRecipe, I_FrameBuffer> frameBufferFactory,
+            Function<I_Image.ImageRecipe, I_Image> imageFactory,
+            Vector2i imageLayout,
+            I_Image.FORMAT imageFormat,
+            Runnable bindMainFrameCall,
+            Runnable unbindMainFrameCall,
+            Runnable clearMainFrameCall
     ) {}
     public record ShaderSpecs(
-            Function<String, I_GeometryShader> geometryShaderFactory
+            Function<String, I_GeometryShader> geometryShaderFactory,
+            Function<String, I_PostProcessShader> postProcessShaderFactory
+    ) {}
+    public record PipeSpecs(
+            Runnable drawQuadCall
     ) {}
 
     private static final Indexer _MODE_INDEXER = new Indexer();
@@ -64,9 +79,36 @@ public class RenderSpecs {
 
     public static final SpecsRegistry<BatchSpecs> BATCH = new SpecsRegistry<>(Map.of(
             OPEN_GL, new BatchSpecs(
-                    (data) -> Worker.GLFW.instruct(
-                            () -> {return;}
-                    ),
+                    (data) -> {
+                        data.material().getShader().bind();
+                        data.vertexBuffer().bind();
+                        data.indexBuffer().bind();
+
+                        Worker.GLFW.instruct(
+                                () -> {
+                                    int stride;
+
+                                    stride = data.exampleMesh().getVertexSize() * Float.BYTES;
+
+                                    glBindVertexArray(data.vertexArray());
+
+                                    for (Map.Entry<String, Integer> entry : data.material().getShader().getLocationNames().entrySet()) {
+                                        int location = entry.getValue();
+                                        // attrib offset + stride need to come from BatchRenderData — see below
+                                        glEnableVertexAttribArray(location);
+                                        glVertexAttribPointer(location, data.exampleMesh().getAttribSize(entry.getKey()), GL_FLOAT, false, stride, data.exampleMesh().getAttribOffset(entry.getKey()));
+                                    }
+
+                                    glDrawElements(GL_TRIANGLES, data.indexBuffer().getSize(), GL_UNSIGNED_INT, 0);
+
+                                    glBindVertexArray(0);
+                                }
+                        );
+
+                        data.indexBuffer().unbind();
+                        data.vertexBuffer().unbind();
+                        data.material().getShader().unbind();
+                    },
                     1000,
                     1000,
                     FlatAllocator::new
@@ -76,11 +118,26 @@ public class RenderSpecs {
             OPEN_GL, new BufferSpecs(
                     GL_ElementBuffer::new,
                     GL_VertexBuffer::new,
-                    (layout) -> null
+                    GL_FrameBuffer::new,
+                    GL_Texture::new,
+                    new Vector2i(1080, 1920),
+                    I_Image.FORMAT.RGBA8,
+                    () -> Worker.GLFW.instruct(() -> glBindFramebuffer(GL_FRAMEBUFFER, 0)),
+                    () -> Worker.GLFW.instruct(() -> glBindFramebuffer(GL_FRAMEBUFFER, 0)),
+                    () -> Worker.GLFW.instruct(() -> {
+                        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                    })
             )
     ));
     public static final SpecsRegistry<ShaderSpecs> SHADER = new SpecsRegistry<>(Map.of(
-            OPEN_GL, new ShaderSpecs(GL_Shader::load)
+            OPEN_GL, new ShaderSpecs(GL_GeometryShader::load, GL_PostProcessShader::load)
+    ));
+    public static final SpecsRegistry<PipeSpecs> PIPE = new SpecsRegistry<>(Map.of(
+            OPEN_GL, new PipeSpecs(() -> {
+                    GL_Quad.init();
+                    GL_Quad.draw();
+            })
     ));
 
     private static int _currentMode = OPEN_GL;

@@ -19,8 +19,8 @@ void main() {
 
 in vec4 vColor;
 
-out vec4 FragColor;
+layout(location=0) out vec4 inputTest;
 
 void main() {
-    FragColor = vColor;
+    inputTest = vColor;
 }

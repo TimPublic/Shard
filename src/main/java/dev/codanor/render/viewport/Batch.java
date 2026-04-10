@@ -1,17 +1,25 @@
 package dev.codanor.render.viewport;
 
+import dev.codanor.engine.Worker;
+import dev.codanor.render.objects.vertex_array.I_VertexArray;
+import dev.codanor.render.render_object.Mesh;
+import dev.codanor.render.specs.buffers.I_FrameBuffer;
 import dev.codanor.render.render_object.Material;
 import dev.codanor.render.render_object.RenderObject;
 import dev.codanor.render.specs.RenderSpecs;
 import dev.codanor.render.specs.batches.Batches;
 import dev.codanor.render.specs.buffers.I_FloatBuffer;
 import dev.codanor.render.specs.allocation.I_Allocator;
+import dev.codanor.render.specs.buffers.I_IntBuffer;
 import dev.codanor.render.specs.buffers.RenderBuffers;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 
 public class Batch {
 
@@ -27,9 +35,14 @@ public class Batch {
 
         recipe.layers.forEach((layer) -> _INDEX_LAYER_MANAGER.addLayer(layer, _INDEX_BUFFER_SIZE));
 
-        _VERTEX_BUFFER = RenderBuffers.createFloat();
+        Worker.GLFW.instruct(() -> {
+            _vertexArray = glGenVertexArrays();
+            glBindVertexArray(_vertexArray);
+        });
 
         _VERTEX_ALLOCATOR = Batches.createVertexAllocatorInitialized();
+        _VERTEX_BUFFER = RenderBuffers.createFloat();
+
 
         p_MATERIAL = recipe.MATERIAL;
         p_VIEWPORT = recipe.VIEWPORT;
@@ -54,7 +67,12 @@ public class Batch {
             Collection<String> layers
     ) {}
     public record BatchRenderData(
-            Camera2D camera2D
+            Camera2D camera2D,
+            Material material,
+            I_IntBuffer indexBuffer,
+            I_FloatBuffer vertexBuffer,
+            int vertexArray,
+            Mesh exampleMesh
     ) {}
 
     private static class ObjInfo {
@@ -83,11 +101,12 @@ public class Batch {
 
     private boolean _killed;
 
+    private int _vertexArray;
+
     private final int _INDEX_BUFFER_SIZE;
     private final BatchIndexLayerManager _INDEX_LAYER_MANAGER;
 
     private final I_Allocator _VERTEX_ALLOCATOR;
-
     private final I_FloatBuffer _VERTEX_BUFFER;
 
     protected final Material p_MATERIAL;
@@ -98,20 +117,22 @@ public class Batch {
     private final HashMap<RenderObject, Batch.ObjInfo> _OBJECTS;
 
     protected void p_render(String layer, Camera2D camera) {
+        Mesh exampleMesh;
+
+        if (_OBJECTS.isEmpty()) return;
+
         _updateObjects();
 
-        _INDEX_LAYER_MANAGER.bind(layer);
+        exampleMesh = _OBJECTS.keySet().iterator().next().getMesh();
 
         RenderSpecs.BATCH.get().drawCall().accept(new BatchRenderData(
-                camera
+                camera,
+                p_MATERIAL,
+                _INDEX_LAYER_MANAGER.getBuffer(layer),
+                _VERTEX_BUFFER,
+                _vertexArray,
+                exampleMesh
         ));
-    }
-
-    protected boolean p_bindIndexBuffer(String layer) {
-        return _INDEX_LAYER_MANAGER.bind(layer);
-    }
-    protected void p_bindVertexBuffer() {
-        _VERTEX_BUFFER.bind();
     }
 
     public boolean addLayer(String layer) {
@@ -129,7 +150,7 @@ public class Batch {
         if (_killed) return false;
 
         vertices = obj.getMesh().getData();
-        if ((verticesIndex = _allocateVertices(vertices, true)) == -1) return false;
+        if ((verticesIndex = _allocateVertices(vertices)) == -1) return false;
 
         if (!_INDEX_LAYER_MANAGER.add(obj.getMesh(), verticesIndex, layers)) {
             _VERTEX_ALLOCATOR.free(verticesIndex, vertices.length);
@@ -162,7 +183,7 @@ public class Batch {
         if (_killed) return false;
 
         vertices = obj.getMesh().getData();
-        if ((verticesIndex = _allocateVertices(vertices, true)) == -1) return false;
+        if ((verticesIndex = _allocateVertices(vertices)) == -1) return false;
 
         if (!_INDEX_LAYER_MANAGER.add(obj.getMesh(), verticesIndex)) {
             _VERTEX_ALLOCATOR.free(verticesIndex, vertices.length);
@@ -236,12 +257,10 @@ public class Batch {
         return _INDEX_LAYER_MANAGER.getMeshLayers(obj.getMesh());
     }
 
-    private int _allocateVertices(float[] vertices, boolean rebuild) {
+    private int _allocateVertices(float[] vertices) {
         int index;
 
         if ((index = _VERTEX_ALLOCATOR.allocate(vertices.length)) == -1) {
-            if (!rebuild) return -1;
-
             p_rebuild();
 
             if ((index = _VERTEX_ALLOCATOR.allocate(vertices.length)) == -1) return -1;

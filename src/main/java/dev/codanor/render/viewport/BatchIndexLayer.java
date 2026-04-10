@@ -175,11 +175,8 @@ public class BatchIndexLayer {
         }
     }
 
-    public void bind() {
-        _BUFFER.bind();
-    }
-    public void unbind() {
-        _BUFFER.unbind();
+    public I_IntBuffer getBuffer() {
+        return _BUFFER;
     }
 
     public String getName() {

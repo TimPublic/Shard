@@ -1,6 +1,7 @@
 package dev.codanor.render.viewport;
 
 import dev.codanor.render.render_object.Mesh;
+import dev.codanor.render.specs.buffers.I_IntBuffer;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,16 +20,8 @@ public class BatchIndexLayerManager {
     private final HashMap<String, BatchIndexLayer> _LAYERS;
     private final HashMap<Mesh, ArrayList<BatchIndexLayer>> _MESHES;
 
-    public boolean bind(String layerName) {
-        BatchIndexLayer layer;
-
-        layer = _LAYERS.get(layerName);
-
-        if (layer == null) return false;
-
-        layer.bind();
-
-        return true;
+    public I_IntBuffer getBuffer(String layerName) {
+        return _LAYERS.get(layerName).getBuffer();
     }
 
     public boolean addLayer(String name, int size) {
@@ -50,7 +43,7 @@ public class BatchIndexLayerManager {
 
         layers = _MESHES.computeIfAbsent(mesh, k -> new ArrayList<>());
 
-        if (layers.isEmpty()) if (!_LAYERS.get("std").add(mesh, verticesPosition, true)) {
+        if (layers.isEmpty()) if (!_LAYERS.get("STD").add(mesh, verticesPosition, true)) {
             _MESHES.remove(mesh);
 
             return false;
@@ -83,7 +76,7 @@ public class BatchIndexLayerManager {
 
         layers = _MESHES.computeIfAbsent(mesh, k -> new ArrayList<>());
 
-        if (layers.isEmpty()) if (!_LAYERS.get("std").add(mesh, verticesPosition, true)) {
+        if (layers.isEmpty()) if (!_LAYERS.get("STD").add(mesh, verticesPosition, true)) {
             _MESHES.remove(mesh);
 
             return false;
@@ -132,7 +125,7 @@ public class BatchIndexLayerManager {
         if (meshLayers.isEmpty()) {
             _MESHES.remove(mesh);
 
-            _LAYERS.get("sts").rmv(mesh);
+            _LAYERS.get("STD").rmv(mesh);
         }
 
         return true;
@@ -146,7 +139,7 @@ public class BatchIndexLayerManager {
 
         for (BatchIndexLayer layer : layers) layer.rmv(mesh);
 
-        _LAYERS.get("std").rmv(mesh);
+        _LAYERS.get("STD").rmv(mesh);
 
         return true;
     }
@@ -176,7 +169,7 @@ public class BatchIndexLayerManager {
 
         if (layers == null) return false;
 
-        if (!_LAYERS.get("std").update(mesh, verticesPosition, true)) {
+        if (!_LAYERS.get("STD").update(mesh, verticesPosition, true)) {
             for (BatchIndexLayer rmvLayer : layers) rmvLayer.rmv(mesh);
 
             return false;

@@ -1,6 +1,6 @@
 package dev.codanor.render.viewport;
 
-import dev.codanor.render.objects.frame_buffer.I_FrameBuffer;
+import dev.codanor.render.specs.buffers.I_FrameBuffer;
 import dev.codanor.render.render_object.Material;
 import dev.codanor.render.render_object.RenderObject;
 import dev.codanor.render.specs.batches.Batches;
@@ -122,6 +122,7 @@ public class BatchContainer {
     }
 
     public void render(String layer, Camera2D camera, I_FrameBuffer frameBuffer) {
+        System.out.println("Rendering " + layer + "!");
         frameBuffer.bind();
         for (Batch batch : _BATCHES.values()) batch.p_render(layer, camera);
         frameBuffer.unbind();

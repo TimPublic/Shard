@@ -52,7 +52,7 @@ public class Window extends A_VisualContainer {
     public static Window create(int width, int height, String title) {
         Window window;
 
-        System.out.println(Shard.addWindowUpdate((window = createIndependent(width, height, title))));
+        Shard.addWindowUpdate((window = createIndependent(width, height, title)));
 
         return window;
     }
@@ -71,9 +71,7 @@ public class Window extends A_VisualContainer {
             }
 
             window.setRenderFocus(true);
-            glClear(GL_COLOR_BUFFER_BIT);
             glfwSwapBuffers(window._glfwId);
-            window.setRenderFocus(false);
         });
 
         return window;

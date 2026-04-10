@@ -15,9 +15,9 @@ import java.util.regex.Pattern;
 
 import static org.lwjgl.opengl.GL20.*;
 
-public class GL_Shader implements I_GeometryShader {
+public class GL_GeometryShader implements I_GeometryShader {
 
-    private GL_Shader(String path) {
+    private GL_GeometryShader(String path) {
         _programId = -1;
         _vertexId = -1;
         _fragmentId = -1;
@@ -34,10 +34,10 @@ public class GL_Shader implements I_GeometryShader {
         h_parseLayouts();
     }
 
-    protected static GL_Shader load(String path) {
-        GL_Shader shader;
+    protected static GL_GeometryShader load(String path) {
+        GL_GeometryShader shader;
 
-        shader = s_SHADER_REGISTRY.computeIfAbsent(path, GL_Shader::new);
+        shader = s_SHADER_REGISTRY.computeIfAbsent(path, GL_GeometryShader::new);
 
         return shader;
     }
@@ -45,7 +45,7 @@ public class GL_Shader implements I_GeometryShader {
     private int _programId, _vertexId, _fragmentId;
     private String _vertexSrc, _fragmentSrc;
 
-    private static final HashMap<String, GL_Shader> s_SHADER_REGISTRY = new HashMap<>();
+    private static final HashMap<String, GL_GeometryShader> s_SHADER_REGISTRY = new HashMap<>();
 
     private final HashMap<String, Integer> _LAYOUTS;
 
@@ -161,11 +161,11 @@ public class GL_Shader implements I_GeometryShader {
 
     @Override
     public void bind() {
-        glUseProgram(_programId);
+        Worker.GLFW.instruct(() -> glUseProgram(_programId));
     }
     @Override
     public void unbind() {
-        glUseProgram(0);
+        Worker.GLFW.instruct(() -> glUseProgram(0));
     }
 
     @Override

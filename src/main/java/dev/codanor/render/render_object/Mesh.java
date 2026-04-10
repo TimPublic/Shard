@@ -21,7 +21,7 @@ public class Mesh {
 
         _indices = new int[0];
 
-        attrib = new Attrib("localCoordinates", new float[]{0, 0}, 0);
+        attrib = new Attrib("aPos", new float[]{0, 0}, 0);
 
         _ATTRIBUTES = new ArrayList<>();
 
@@ -344,6 +344,14 @@ public class Mesh {
     }
     public int getVertexSize() {
         return _vertexSize;
+    }
+
+    public int getAttribOffset(String name) {
+        for (Attrib attrib : _ATTRIBUTES) {
+            if (Objects.equals(attrib.NAME, name)) return attrib._LOCAL_INDEX;
+        }
+
+        throw new NoSuchAttributeException();
     }
 
     public float[] getData() {
